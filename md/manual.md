@@ -7,8 +7,11 @@ They can:
 - Prevent cells from being deleted or edited.
 - Replace a mnemonic label with an URL.
 
-Jollity does _not_ convert notebooks from/to other formats.
-There are plenty of tools for that.
+Jollity does _not_ convert notebooks from/to other formats,
+like Markdown, PDF and HTML.
+There are plenty of tools for that, including [pandoc](pandoc),
+[nbconvert](nbconvert), [jupytext](jupytext),
+[nbsphinx](nbsphinx) and [Jupyter Book](jubook).
 
 Jollity uses the `NotebookNode` class of the `nbformat` module to
 represent a notebook in memory.
@@ -115,3 +118,24 @@ it won't insert a non-breaking space in '3kg'.
 If you don't want any space before or after a digit to be replaced,
 omit the corresponding argument, e.g. `add_nbsp(nb, after=r'kg')`
 replaces spaces only in text like '3 kg' and nothing else.
+
+## Expand URLs
+If you use some URLs repeatedly or URLs that change regularly,
+like links to the current year's course webpage, Jollity allows you to define
+a dictionary of labels to URLs and use the labels in Markdown links.
+Having all URLs in one place makes it easier to update them.
+```py
+expand_urls(nb, url:dict)
+```
+This function goes through all Markdown cells of notebook `nb` and,
+for each link `[text](label)` where `label` doesn't start with 'http',
+replaces `label` with `URL` if
+the pair `label:URL` occurs in the `url` dictionary.
+For example, `expand_urls(nb, {'ou':'https://open.ac.uk'})` replaces
+`[Open University](ou)` with `[Open University](https://open.ac.uk)`.
+```
+WARNING:Unknown link label:...
+```
+This message indicates that `...` occurs in a link but not in the dictionary.
+The example above generates this message because `ou` is not in the dictionary
+created by `generate_doc.py`.

@@ -14,9 +14,15 @@ def generate_nb(source: str, target: str):
 
         # Process the notebook
         jollity.remove_comments(nb)
-        # done separately for testing purposes
         jollity.add_nbsp(nb, before=r'Part|Unit|[Cc]ell')
-        jollity.add_nbsp(nb, after=r'kg|m')
+        jollity.add_nbsp(nb, after=r'kg|m') # done separately for testing
+        jollity.expand_urls(nb, {
+            'jupytext': 'https://jupytext.readthedocs.io',
+            'pandoc': 'https://pandoc.org',
+            'nbconvert': 'https://nbconvert.readthedocs.io',
+            'nbsphinx': 'https://nbsphinx.readthedocs.io',
+            'jubook': 'https://jupyterbook.org',
+        })
 
         # Replace extension .md with .ipynb and write the file
         path, _ = os.path.splitext(target)

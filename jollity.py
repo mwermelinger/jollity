@@ -36,3 +36,19 @@ def add_nbsp(nb, before:str='', after:str='') -> None:
                 cell.source = BEFORE.sub(r'\1&nbsp;\2', cell.source)
             if after:
                 cell.source = AFTER.sub(r'\1&nbsp;\2', cell.source)
+
+def expand_urls(nb, url:dict) -> None:
+    """Replace labels with URLs in Markdown links."""
+    def get_url(match):
+        label = match.group(1)
+        if label in url:
+            return '](' + url[label] + ')'
+        else:
+            warning(f'Unknown link label:{label}')
+            return match.group(0)   # don't change link
+
+    # match ](...) but not ](http...)
+    URL = re.compile(r'\]\((?!http)([^\)]+)\)')
+    for cell in nb.cells:
+        if cell.cell_type == 'markdown':
+            cell.source = URL.sub(get_url, cell.source)

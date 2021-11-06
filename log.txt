@@ -1,3 +1,5 @@
 WARNING:Spurious end of comment:The line with the first closing `-->` is also removed, i.e.
 WARNING:Text after comment: This sentence will be deleted.
 WARNING:Spurious end of comment:This message warns that line `...` has `-->` but no comment was open.
+WARNING:Unknown link label:label
+WARNING:Unknown link label:ou

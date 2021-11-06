@@ -3,14 +3,8 @@
 Jollity supports the authoring of textbooks and other documents
 as collections of Jupyter notebooks.
 
-If you want to author in Markdown, before using Jollity you must convert
-the Markdown files to notebooks, e.g. with [pandoc](https://pandoc.org) or
-[Jupytext](https://jupytext.readthedocs.io).
-
-Once the notebooks are produced, you can generate a PDF or HTML version of them,
-e.g. with [nbconvert](https://nbconvert.readthedocs.io), pandoc,
-[nbsphinx](https://nbsphinx.readthedocs.io) or
-[Jupyter Book](https://jupyterbook.org).
+Jollity automates some of the tasks that can be tedious or error-prone if
+done manually, like inserting non-breaking spaces before or after numbers.
 
 <p xmlns:cc="http://creativecommons.org/ns#"
 xmlns:dct="http://purl.org/dc/terms/">
