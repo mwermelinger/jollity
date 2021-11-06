@@ -65,7 +65,7 @@ logging.basicConfig(filename='log.txt', filemode='w')
 ## Remove comments
 When authoring, you may wish to keep notes, ideas, draft paragraphs,
 alternative exercise solutions, to-do reminders and similar kinds of text
-in the same file, rather than in a separate document.
+in the notebook, where it's relevant, rather than in a separate document.
 You can write such text within HTML comments,
 so that it isn't rendered in the notebook.
 However, readers will see the comments if they edit the cells.
@@ -78,6 +78,8 @@ It only removes comments that start with `<!--`
 at the beginning of a line, preceded by at most three spaces.
 The line with the first closing `-->` is also removed, i.e.
 any text on the same line after the comment is discarded.
+
+This function is usually called before the others.
 ```
 WARNING:Text after comment:...
 ```
@@ -139,3 +141,25 @@ WARNING:Unknown link label:...
 This message indicates that `...` occurs in a link but not in the dictionary.
 The example above generates this message because `ou` is not in the dictionary
 created by `generate_doc.py`.
+
+## Replace text
+To save time typing boilerplate text or special characters (1/4, =>, ·, etc.),
+you can define a map of abbreviations to their corresponding expansions.
+```py
+replace_text(nb, map:dict, code:bool)
+```
+This function does the replacements indicated in `map` in all Markdown
+and code cells (if `code` is true) of notebook `nb`.
+
+The dictionary maps strings to strings, e.g.
+`{'etc': 'and so on', '(c)': '©', 'ø': 'Θ', '1/3': '⅓'}`.
+I use the mapping of ø to Θ in my book on algorithms.
+It's an example of mapping quick-to-type characters (Alt-o produces ø on my
+keyboard) to characters without a shortcut (here, uppercase Theta).
+
+Jollity defines two dictionaries:
+
+- `POWERS` maps ^ followed by i, n, 0, ..., 9 to the corresponding superscripts
+  ^i, ^n, ^0, ..., ^9. To avoid making these replacements in LaTeX maths,
+  put braces around the exponent, e.g. ^{i}.
+- `FRACTIONS` maps 1/2, ..., 1/10, 2/3, 3/4 to ½, ..., ⅒, ⅔, ¾.

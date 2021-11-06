@@ -5,6 +5,13 @@ from nbformat import NotebookNode
 import nbformat
 import re
 
+# maps for function `replace-text`
+POWERS = {  '^0':'⁰', '^1':'¹', '^2':'²', '^3':'³', '^4':'⁴', '^5':'⁵',
+            '^6':'⁶', '^7':'⁷', '^8':'⁸', '^9':'⁹', '^n':'ⁿ', '^i':'ⁱ'}
+FRACTIONS = {'1/2': '½', '1/3': '⅓', '1/4': '¼', '1/5': '⅕', '1/6': '⅙',
+             '1/7': '⅐', '1/8': '⅛', '1/9': '⅑', '1/10': '⅒',
+             '2/3': '⅔', '3/4': '¾'}
+
 def remove_comments(nb: NotebookNode) -> None:
     """Remove HTML comments from Markdown cells."""
     for cell in nb.cells:
@@ -39,7 +46,7 @@ def add_nbsp(nb, before:str='', after:str='') -> None:
 
 def expand_urls(nb, url:dict) -> None:
     """Replace labels with URLs in Markdown links."""
-    def get_url(match):
+    def get_url(match) -> str:
         label = match.group(1)
         if label in url:
             return '](' + url[label] + ')'
@@ -52,3 +59,20 @@ def expand_urls(nb, url:dict) -> None:
     for cell in nb.cells:
         if cell.cell_type == 'markdown':
             cell.source = URL.sub(get_url, cell.source)
+
+def replace_text(nb, map:dict, code:bool) -> None:
+    """Apply the replacements in the dictionary."""
+    char = dict()   # maps characters to replacement strings
+    text = dict()   # maps strings to strings
+    for key, value in map.items():
+        if len(key) == 1:
+            char[key] = value
+        else:
+            text[key] = value
+    CHARS = str.maketrans(char)
+
+    for cell in nb.cells:
+        if cell.cell_type == 'markdown' or (code and cell.cell_type == 'code'):
+            cell.source = cell.source.translate(CHARS)
+            for abbrv, expansion in text.items():
+                cell.source = cell.source.replace(abbrv, expansion)
