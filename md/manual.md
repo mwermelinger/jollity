@@ -10,7 +10,7 @@ They can:
 Jollity does _not_ convert notebooks from/to other formats,
 like Markdown, PDF and HTML.
 There are plenty of tools for that, including [pandoc](pandoc),
-[nbconvert](nbconvert), [jupytext](jupytext),
+[nbconvert](nbconvert), [Jupytext](jupytext),
 [nbsphinx](nbsphinx) and [Jupyter Book](jubook).
 
 Jollity uses the `NotebookNode` class of the `nbformat` module to
@@ -163,3 +163,26 @@ Jollity defines two dictionaries:
   ^i, ^n, ^0, ..., ^9. To avoid making these replacements in LaTeX maths,
   put braces around the exponent, e.g. ^{i}.
 - `FRACTIONS` maps 1/2, ..., 1/10, 2/3, 3/4 to ½, ..., ⅒, ⅔, ¾.
+
+## (Un)Lock cells
+Jupyter notebook cells can be locked against accidental deletion or change.
+If users want to edit or delete a locked cell, they have to unlock it first.
+A compliant Jupyter notebook interface won't allow users to delete cells
+that can't be edited.
+
+Jollity can lock or unlock cells of certain types for editing and/or deletion.
+```py
+set_cells(nb, types:str, edit:bool, delete:bool)
+```
+This function sets all cells of the given types to be editable and/or deletable.
+If you omit the argument, the cell's status isn't changed.
+This is useful if you for example only want some text cells do be editable.
+
+Argument `types` is a string with one or more of `markdown`, `code` and `raw`.
+If all cells should be set, use the string `'all'`.
+
+For example, `set_cells(nb, 'all', delete=False)` prevents all cells from being
+deleted but leaves their editable status unchanged. The call
+`set_cells(nb, 'code raw', edit=True, delete=False)` makes all
+code and raw cells editable but not deletable.
+The status of Markdown cells is not modified.

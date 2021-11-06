@@ -76,3 +76,14 @@ def replace_text(nb, map:dict, code:bool) -> None:
             cell.source = cell.source.translate(CHARS)
             for abbrv, expansion in text.items():
                 cell.source = cell.source.replace(abbrv, expansion)
+
+def set_cells(nb, types:str='all', edit=None, delete=None) -> None:
+    """Lock or unlock the given types of cells for editing or deletion."""
+    if 'all' in types:
+        types = 'markdown code raw'
+    for cell in nb.cells:
+        if cell.cell_type in types:
+            if edit is not None:
+                cell.metadata.editable = edit
+            if delete is not None:
+                cell.metadata.deletable = delete

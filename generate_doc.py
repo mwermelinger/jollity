@@ -14,6 +14,7 @@ def generate_nb(source: str, target: str):
 
         # Process the notebook
         jollity.remove_comments(nb)
+        jollity.set_cells(nb, 'markdown', edit=True, delete=False)
         jollity.add_nbsp(nb, before=r'Part|Unit|[Cc]ell')
         jollity.add_nbsp(nb, after=r'kg|m') # done separately for testing
         jollity.expand_urls(nb, {
@@ -23,9 +24,11 @@ def generate_nb(source: str, target: str):
             'nbsphinx': 'https://nbsphinx.readthedocs.io',
             'jubook': 'https://jupyterbook.org',
         })
+
         map = {'1/4': '¼', '=>': '⇒', 'etc.': 'and so on', '·': '×'}
         map.update(jollity.POWERS)  # add the exponent abbreviations
         jollity.replace_text(nb, map, code=True)
+
 
         # Replace extension .md with .ipynb and write the file
         path, _ = os.path.splitext(target)
