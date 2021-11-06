@@ -9,9 +9,17 @@ import shutil
 def generate_nb(source: str, target: str):
     """Generate target notebook from source Markdown. Ignore other files."""
     if source.endswith('.md'):
+        # Convert Markdown to Jupyter notebook
         nb = jupytext.read(source)
+
+        # Process the notebook
         jollity.remove_comments(nb)
-        path, _ = os.path.splitext(target)      # discard .md extension
+        # done separately for testing purposes
+        jollity.add_nbsp(nb, before=r'Part|Unit|[Cc]ell')
+        jollity.add_nbsp(nb, after=r'kg|m')
+
+        # Replace extension .md with .ipynb and write the file
+        path, _ = os.path.splitext(target)
         jupytext.write(nb, path + '.ipynb')
 
 logging.basicConfig(

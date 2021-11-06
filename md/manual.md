@@ -59,8 +59,7 @@ If you want the log file to start afresh every time you run the script, write
 logging.basicConfig(filename='log.txt', filemode='w')
 ```
 
-## Removing comments
-
+## Remove comments
 When authoring, you may wish to keep notes, ideas, draft paragraphs,
 alternative exercise solutions, to-do reminders and similar kinds of text
 in the same file, rather than in a separate document.
@@ -93,3 +92,26 @@ WARNING:Spurious end of comment:...
 This message warns that line `...` has `-->` but no comment was open.
 This may be deliberate, as in the previous sentence,
 or the corresponding `<!--` isn't at the start of a line.
+
+## Add non-breaking spaces
+Text like 'Part 1' and '23 kg' should use non-breaking spaces.
+Jollity can automatically insert them.
+```py
+add_nbsp(nb, before:str, after:str)
+```
+This function goes through the Markdown cells of notebook `nb` and
+replaces one or more spaces between a word and a digit
+with a single non-breaking space (`&nbsp;`).
+Arguments `before` and `after` must be Python
+[regular expressions](https://docs.python.org/3/library/re.html).
+They indicate which words come respectively before and after a number for
+a non-breaking space to be inserted. For example,
+`add_nbsp(nb, r'Unit|[Cc]ell', r'kg|m')` replaces the space before/after
+the digit in 'Unit 1', 'cell 4', '5 kg, '3.25 metres', '2 ms' (milliseconds),
+'6 marble columns', but not in 'unit 1', '5 cells', '3 KG', '3 and 5'.
+This function replaces spaces, it doesn't create them:
+it won't insert a non-breaking space in '3kg'.
+
+If you don't want any space before or after a digit to be replaced,
+omit the corresponding argument, e.g. `add_nbsp(nb, after=r'kg')`
+replaces spaces only in text like '3 kg' and nothing else.
