@@ -1,4 +1,5 @@
 # Jollity User Manual
+<!-- To test spaces(), make sure the editor doesn't remove trailing spaces. -->
 
 Jollity is a small library of functions that process Jupyter notebooks.
 They can:
@@ -198,6 +199,25 @@ deleted but leaves their editable status unchanged. The call
 `set_cells(nb, 'code raw', edit=True, delete=False)` makes all
 code and raw cells editable but not deletable.
 The status of Markdown cells is not modified.
+
+## Spaces
+       
+<!-- Previous blank line should be removed. Next spaces shouldn't. -->
+   In Markdown, two or more spaces at the end of a line represent a line break.
+It's better to use a backslash as the explicit line break marker.
+Jollity can report invisible line breaks and replace them with visible ones.
+```py
+spaces(nb, strip:bool, visible_breaks:bool)
+```
+If `strip` is true, this function first removes all whitespace at the end and
+all blank lines at the start of every cell, including code and raw cells.  
+Then it reports invisible line breaks in Markdown cells and,
+if `fix_breaks` is true, replaces them with a backslash,
+like for the previous sentence.
+```
+WARNING:Invisible line break:...
+```
+This message indicates that line `...` has two or more spaces at the end.
 
 ## Fix italics
 Some Jupyter interfaces don't render italics text correctly in some situations,

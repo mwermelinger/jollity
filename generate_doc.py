@@ -15,6 +15,7 @@ def generate_nb(source: str, target: str):
         # Process the notebook
         jollity.remove_comments(nb, r'INFO|NOTE|ANSWER')
         jollity.extract_headers(nb)
+        jollity.spaces(nb, strip=True, fix_breaks=True)
         jollity.set_cells(nb, 'markdown', edit=True, delete=False)
         jollity.add_nbsp(nb, before=r'Part|Unit|[Cc]ell')
         jollity.add_nbsp(nb, after=r'kg|m') # done separately for testing

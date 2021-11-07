@@ -73,6 +73,20 @@ def fix_italics(nb: NotebookNode) -> None:
         (r'_([A-Za-z0-9 ]+)_([⁰¹²³⁴⁵⁶⁷⁸⁹ⁿⁱ])', r'*\1*\2')
     ])
 
+def spaces(nb: NotebookNode, strip:bool, fix_breaks:bool) -> None:
+    """Handle spaces in cells."""
+    for cell in nb.cells:
+        if strip:
+            # cell.source.strip() would remove indentation of first line,
+            # which may matter
+            cell.source = re.sub(r'^\s*\n', '', cell.source.rstrip())
+        if cell.cell_type == 'markdown' and '  \n' in cell.source:
+            for line in cell.source.split('\n'):
+                if line.endswith('  '):
+                    warning(f'Invisible line break:{line}')
+            if fix_breaks:
+                cell.source = re.sub(r'  +\n', r'\\\n', cell.source)
+
 def extract_headers(nb: NotebookNode) -> None:
     """Put each ATX header in its own cell. The existing metadata is lost."""
     cells = []
