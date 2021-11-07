@@ -71,32 +71,44 @@ so that it isn't rendered in the notebook.
 However, readers will see the comments if they edit the cells.
 Jollity can remove them before you deliver the notebooks to your audience.
 ```py
-jollity.remove_comments(nb)
+jollity.remove_comments(nb, special:str)
 ```
 This function removes HTML comments from all Markdown cells in notebook `nb`.
-It only removes comments that start with `<!--`
-at the beginning of a line, preceded by at most three spaces.
-The line with the first closing `-->` is also removed, i.e.
-any text on the same line after the comment is discarded.
+In line with the CommonMark specification, this function only removes comments
+that start with `<!--` at the beginning of a line, preceded by at most
+three spaces.
+
+Argument `special` is a regular expression.
+If the start of a comment matches it, the comment is not removed.
 
 This function is usually called before the others.
-```
-WARNING:Text after comment:...
-```
-This message warns that text `...` was deleted because it comes
-after closing a comment. The Markdown source of this manual has
-next an example that raises this message.
+
 <!-- single-line comment -->
+<!-- INFO
+
+<!-- INFO --><!-- This comment is kept. -->
   <!--
   multi-line comment
   indented by two spaces
-  --> This sentence will be deleted.
+  -->
+
+## Extract headers
+```py
+extract_headers(nb)
 ```
-WARNING:Spurious end of comment:...
+This function puts headers in their own Markdown cells, with extra metadata to
+make their subsequent processing easier. Jollity only detects ATX headers,
+i.e. those starting with one or more hash symbols.
+Lines starting with hash symbols within code blocks are not considered headers.
+A code block starts and ends with triple backticks.
 ```
-This message warns that line `...` has `-->` but no comment was open.
-This may be deliberate, as in the previous sentence,
-or the corresponding `<!--` isn't at the start of a line.
+WARNING:Skipped heading level:...
+```
+This message indicates that header `...` is more than one level below
+the previous header, e.g. you went from a level 1 to a level 3 header
+without any level-2 header in between.
+
+#### Warning: level-4 heading
 
 ## Add non-breaking spaces
 Text like 'Part 1' and '23 kg' should use non-breaking spaces.
@@ -186,3 +198,13 @@ deleted but leaves their editable status unchanged. The call
 `set_cells(nb, 'code raw', edit=True, delete=False)` makes all
 code and raw cells editable but not deletable.
 The status of Markdown cells is not modified.
+
+## Fix italics
+Some Jupyter interfaces don't render italics text correctly in some situations,
+e.g. `[_text_]`.
+```py
+fix_italics(nb)
+```
+This function replaces underscores with asterisks in some contexts,
+to avoid the rendering bug. This function may not cater for all the
+possibilities in your text, so double-check your notebooks.
