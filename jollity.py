@@ -23,6 +23,76 @@ FRACTIONS = list({
 # .*? is a non-greedy match so that it stops at the first -->
 COMMENT = r'(?ms)^ ? ? ?<!--.*?-->\n?'
 
+def split_md(nb: NotebookNode) -> None:
+    """Split markdown cells in headings, text, fenced blocks. Remove comments."""
+    ATX = re.compile(r' {0,3}(#{1,6}) +(.+?)( +#+)? *$')
+    FENCE = re.compile(r' {0,3}(`{3,}|~{3,})')
+    COMMENT_START = re.compile(r' {0,3}<!--')
+    # find first --> in line with non-greedy match .*?
+    COMMENT_END = re.compile(r'.*?-->(.*)')
+    
+    def close(kind, extra=dict()):
+        # remove blank lines at start and whitespace at end
+        source = re.sub(r'^\s*\n', '', '\n'.join(lines).rstrip())
+        if source:
+            cell = nb4.new_markdown_cell(source)
+            cell.metadata = {'jollity': {'kind': kind}}
+            cell.metadata.update(old_cell.metadata)
+            if extra:
+                cell.metadata.jollity.update(extra)
+            cells.append(cell)
+        
+    cells = []
+    for old_cell in nb.cells:
+        if old_cell.cell_type != 'markdown':
+            cells.append(old_cell)
+            continue
+        
+        lines = []
+        fence = ''      # the opening fence of the current fenced block
+        comment = False
+        previous_level = math.inf
+        for line in old_cell.source.split('\n'):
+            if comment:
+                if match := COMMENT_END.match(line):
+                    comment = False
+                    lines.append(match.group(1))    # text after comment
+            elif fence:
+                match = FENCE.match(line)
+                if match and match.group(1).startswith(fence):
+                    fence = ''
+                    lines.append(line)
+                    close('fence')
+                    lines = []
+                else:
+                    lines.append(line)
+            elif match := COMMENT_START.match(line):
+                if match := COMMENT_END.match(line):
+                    lines.append(match.group(1))    # text after comment
+                else:
+                    comment = True
+            elif match := FENCE.match(line):
+                close('text')
+                fence = match.group(1)  # remember opening sequence of ` or ~
+                lines = [line] 
+            elif match := ATX.match(line):
+                close('text')
+                lines = [line]
+                this_level = len(match.group(1))
+                if this_level - previous_level > 1:
+                    warning(f'Skipped heading level:{line}')
+                close('head', {
+                    'level': this_level,
+                    'heading': match.group(2), 
+                })
+                previous_level = this_level
+                lines = []
+            else:
+                lines.append(line)
+        
+        close('text')
+    nb.cells = cells
+
 def _replace(nb, kind, replacements, types):
     """Internal auxiliary function."""
     if types == 'all':
@@ -83,10 +153,9 @@ def spaces(nb: NotebookNode, fix_breaks:bool) -> None:
             if fix_breaks:
                 cell.source = re.sub(r'  +\n', r'\\\n', cell.source)
 
-def extract_headers(nb: NotebookNode) -> None:
-    """Put each ATX header in its own cell. The existing metadata is lost."""
+def extract_answers(nb, old:str, new:str) -> None:
+    """Put answer templates in separate cells. Metadata is lost."""
     cells = []
-    previous_level = math.inf
     for cell in nb.cells:
         if cell.cell_type != 'markdown':
             cells.append(cell)
@@ -96,22 +165,17 @@ def extract_headers(nb: NotebookNode) -> None:
             for line in cell.source.split('\n'):
                 if line.startswith('```'):
                     code = not code
-                header = re.match(r'(#+) *(.+)', line)
-                if header and not code:
+                if line == old and not code:
                     if lines:
-                        cells.append(nb4.new_markdown_cell('\n'.join(lines)))
+                        cells.append(nb4.new_markdown_cell(
+                            source='\n'.join(lines),
+                            metadata=cell.metadata
+                        ))
 
-                    cell = nb4.new_markdown_cell(line)
-                    this_level = len(header.group(1))
-                    cell.metadata.jollity = {
-                        'header': header.group(2),
-                        'level': this_level
-                    }
-                    cells.append(cell)
-                    if this_level - previous_level > 1:
-                        warning(f'Skipped heading level:{line}')
-                    previous_level = this_level
-
+                    new_cell = nb4.new_markdown_cell(new)
+                    new_cell.metadata.jollity = {'kind': 'answer'}
+                    cells.append(new_cell)
+                    
                     lines = []          # start new cell
                 else:
                     lines.append(line)
@@ -119,7 +183,7 @@ def extract_headers(nb: NotebookNode) -> None:
             if lines:
                 cells.append(nb4.new_markdown_cell('\n'.join(lines)))
     nb.cells = cells
-
+    
 def expand_urls(nb, url:dict) -> None:
     """Replace labels with URLs in Markdown links."""
     def get_url(match) -> str:

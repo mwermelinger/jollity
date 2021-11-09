@@ -263,3 +263,28 @@ fix_italics(nb)
 This function replaces underscores with asterisks in some contexts,
 to avoid the rendering bug. This function may not cater for all the
 possibilities in your text, so double-check your notebooks.
+
+<!-- To do: make it part of split_md; currently loses metadata
+## Extract answers
+You can mark with special text where you want students to write answers
+and Jollity will create _separate_ Markdown cells with boilerplate text.
+This allows students to write their answers while still seeing
+the rendered question, instead of its Markdown source.
+```py
+extract_answers(nb, old:str, new:str)
+```
+This function goes through all Markdown cells and for each line that matches
+exactly `old`, it creates a new Markdown cell with text `new`. For example,
+for my algorithms book I first call
+```py
+remove_comments(nb, 'ANSWER')
+```
+and later, after generating the PDF and HTML, I call
+```py
+extract_headers(nb, '<!-- ANSWER --', '_Write your answer here._')
+```
+By using a comment as the marker, nothing appears in the PDF or HTML, while
+    <!-- ANSWER --
+appears in the final notebooks.
+
+-->

@@ -13,14 +13,9 @@ def generate_nb(source: str, target: str):
         nb = jupytext.read(source)
 
         # Process the notebook
-        # Remove comments in markdown cells
-        jollity.replace_re(nb, 'markdown', (jollity.COMMENT, ''))
-        jollity.extract_headers(nb)
+        jollity.split_md(nb)
         # jollity.extract_answers(nb,
         #      '    <!-- ANSWER -->', '_Write your answer here._')
-        # Remove blank lines at the start and whitespace at the end of each cell
-        jollity.replace_re(nb, 'all', [(r'^\s*\n', ''), (r'\s+$', '')])
-        
         jollity.spaces(nb, fix_breaks=True)
         jollity.add_nbsp(nb, before=r'Part|Unit|[Cc]ell')
         jollity.add_nbsp(nb, after=r'kg|m') # done separately for testing
@@ -31,14 +26,13 @@ def generate_nb(source: str, target: str):
             'nbsphinx': 'https://nbsphinx.readthedocs.io',
             'jubook': 'https://jupyterbook.org',
         })
-
         jollity.replace_char(nb, 'markdown', ('Ø', 'O'))
         jollity.replace_str(nb, 'markdown', jollity.POWERS)
         jollity.replace_str(nb, 'markdown', [
             ('1/4', '¼'), ('=>', '⇒'), ('e.g.', 'for example')
         ])
         jollity.set_cells(nb, 'markdown', edit=True, delete=False)
-            
+         
         # Replace extension .md with .ipynb and write the file
         path, _ = os.path.splitext(target)
         jupytext.write(nb, path + '.ipynb')
