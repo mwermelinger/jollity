@@ -13,10 +13,15 @@ def generate_nb(source: str, target: str):
         nb = jupytext.read(source)
 
         # Process the notebook
-        jollity.remove_comments(nb, r'INFO|NOTE|ANSWER')
+        # Remove comments in markdown cells
+        jollity.replace_re(nb, 'markdown', (jollity.COMMENT, ''))
         jollity.extract_headers(nb)
-        jollity.spaces(nb, strip=True, fix_breaks=True)
-        jollity.set_cells(nb, 'markdown', edit=True, delete=False)
+        # jollity.extract_answers(nb,
+        #      '    <!-- ANSWER -->', '_Write your answer here._')
+        # Remove blank lines at the start and whitespace at the end of each cell
+        jollity.replace_re(nb, 'all', [(r'^\s*\n', ''), (r'\s+$', '')])
+        
+        jollity.spaces(nb, fix_breaks=True)
         jollity.add_nbsp(nb, before=r'Part|Unit|[Cc]ell')
         jollity.add_nbsp(nb, after=r'kg|m') # done separately for testing
         jollity.expand_urls(nb, {
@@ -27,10 +32,13 @@ def generate_nb(source: str, target: str):
             'jubook': 'https://jupyterbook.org',
         })
 
-        map = {'1/4': '¼', '=>': '⇒', 'etc.': 'and so on', '·': '×'}
-        map.update(jollity.POWERS)  # add the exponent abbreviations
-        jollity.replace_text(nb, map, code=True)
-
+        jollity.replace_char(nb, 'markdown', ('Ø', 'O'))
+        jollity.replace_str(nb, 'markdown', jollity.POWERS)
+        jollity.replace_str(nb, 'markdown', [
+            ('1/4', '¼'), ('=>', '⇒'), ('e.g.', 'for example')
+        ])
+        jollity.set_cells(nb, 'markdown', edit=True, delete=False)
+            
         # Replace extension .md with .ipynb and write the file
         path, _ = os.path.splitext(target)
         jupytext.write(nb, path + '.ipynb')

@@ -1,4 +1,4 @@
 WARNING:Skipped heading level:#### Warning: level-4 heading
-WARNING:Invisible line break:all blank lines at the start of every cell, including code and raw cells.  
+WARNING:Invisible line break:if `fix_breaks` is true, replaces them with a backslash,  
 WARNING:Unknown link label:label
 WARNING:Unknown link label:ou

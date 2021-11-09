@@ -147,7 +147,7 @@ for each link `[text](label)` where `label` doesn't start with 'http',
 replaces `label` with `URL` if
 the pair `label:URL` occurs in the `url` dictionary.
 For example, `expand_urls(nb, {'ou':'https://open.ac.uk'})` replaces
-`[Open University](ou)` with `[Open University](https://open.ac.uk)`.
+`[Øpen University](ou)` with `[Øpen University](https://open.ac.uk)`.
 ```
 WARNING:Unknown link label:...
 ```
@@ -156,26 +156,65 @@ The example above generates this message because `ou` is not in the dictionary
 created by `generate_doc.py`.
 
 ## Replace text
-To save time typing boilerplate text or special characters (1/4, =>, ·, etc.),
-you can define a map of abbreviations to their corresponding expansions.
+<!-- To do: document replace_char/str/re -->
+Jollity provides three functions to replace text. 
+They can be used for various purposes.
+
+### Replace characters
+If you frequently need to type special characters for which there's no keyboard
+shortcut, you can tell Jollity which quick-to-type characters should be
+replaced with those special characters.
 ```py
-replace_text(nb, map:dict, code:bool)
+replace_char(nb, types:str, replacements:list)
 ```
-This function does the replacements indicated in `map` in all Markdown
-and code cells (if `code` is true) of notebook `nb`.
+This function applies the given replacements to all cells of the given types. 
+The replacements are a list of character pairs (old, new).
+The replacements are applied in the given order.
+For example, for my algorithms book I do
+```py
+replace_char(nb, 'markdown code', [('ø', 'Θ'), ('·', '×')])
+```
+This replaces in all code and markdown cells ø (Alt-o on my keyboard) with 
+uppercase Theta (which has no keyboard shortcut) and then 
+· (Alt-Shift-9) with ×.
 
-The dictionary maps strings to strings, e.g.
-`{'etc': 'and so on', '(c)': '©', 'ø': 'Θ', '1/3': '⅓'}`.
-I use the mapping of ø to Θ in my book on algorithms.
-It's an example of mapping quick-to-type characters (Alt-o produces ø on my
-keyboard) to characters without a shortcut (here, uppercase Theta).
+Jollity replaces all occurrences of the old character by the new character,
+so make sure you don't use the old character for other purposes.
+For example, in the rare occasions I do need the dot product sign, I write it
+in LaTeX: `$\cdot$`.
 
-Jollity defines two dictionaries:
+### Replace strings
+Jollity can also replace strings with strings. 
+```py
+replace_char(nb, types:str, replacements:list)
+```
+This function is like `replace_char` but with the replacements being a list of 
+pairs of strings, e.g.
+```py
+replace_char(nb, 'markdown', [('(c)', '©'), ('etc.', 'and so on')])
+```
+Jollity defines two replacement lists you can pass to this function:
 
-- `POWERS` maps ^ followed by i, n, 0, ..., 9 to the corresponding superscripts
+- `POWERS` replaces ^ followed by i, n, 0, ..., 9 with superscripts
   ^i, ^n, ^0, ..., ^9. To avoid making these replacements in LaTeX maths,
   put braces around the exponent, e.g. ^{i}.
-- `FRACTIONS` maps 1/2, ..., 1/10, 2/3, 3/4 to ½, ..., ⅒, ⅔, ¾.
+- `FRACTIONS` replaces 1/2, ..., 1/10, 2/3, 3/4 with ½, ..., ⅒, ⅔, ¾.
+
+### Replace regular expressions
+       
+<!-- Previous blank line should be removed. Next spaces shouldn't. -->
+   The most powerful function replaces text that matches a regular expression.
+```py
+replace_re(nb, types:str, replacements:list)
+```
+This function is like the previous two but the replacements are a list of 
+pairs of regular expressions. For example, the following removes from each cell,
+including raw cells, blank lines at the start and whitespace at the end.
+(Removing all whitespace from the start would remove the first line's
+indentation, which may be significant.)
+```py
+jollity.replace_re(nb, 'all', [(r'^\s*\n', ''), (r'\s+$', '')])
+```
 
 ## (Un)Lock cells
 Jupyter notebook cells can be locked against accidental deletion or change.
@@ -201,19 +240,15 @@ code and raw cells editable but not deletable.
 The status of Markdown cells is not modified.
 
 ## Spaces
-       
-<!-- Previous blank line should be removed. Next spaces shouldn't. -->
-   In Markdown, two or more spaces at the end of a line represent a line break.
+In Markdown, two or more spaces at the end of a line represent a line break.
 It's better to use a backslash as the explicit line break marker.
 Jollity can report invisible line breaks and replace them with visible ones.
 ```py
-spaces(nb, strip:bool, visible_breaks:bool)
+spaces(nb, fix_breaks:bool)
 ```
-If `strip` is true, this function first removes all whitespace at the end and
-all blank lines at the start of every cell, including code and raw cells.  
-Then it reports invisible line breaks in Markdown cells and,
-if `fix_breaks` is true, replaces them with a backslash,
-like for the previous sentence.
+This function reports invisible line breaks in Markdown cells and,
+if `fix_breaks` is true, replaces them with a backslash,  
+like for this sentence.
 ```
 WARNING:Invisible line break:...
 ```

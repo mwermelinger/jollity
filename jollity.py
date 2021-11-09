@@ -1,85 +1,81 @@
 """jollity - a library of Jupyter notebook processing functions"""
 
-from logging import warning
+from logging import warning, error
 from nbformat import NotebookNode
 import math
 import nbformat
 import nbformat.v4 as nb4
 import re
 
-# maps for function `replace-text`
-POWERS = {  '^0':'⁰', '^1':'¹', '^2':'²', '^3':'³', '^4':'⁴', '^5':'⁵',
-            '^6':'⁶', '^7':'⁷', '^8':'⁸', '^9':'⁹', '^n':'ⁿ', '^i':'ⁱ'}
-FRACTIONS = {'1/2': '½', '1/3': '⅓', '1/4': '¼', '1/5': '⅕', '1/6': '⅙',
-             '1/7': '⅐', '1/8': '⅛', '1/9': '⅑', '1/10': '⅒',
-             '2/3': '⅔', '3/4': '¾'}
+# maps for function `replace_text`
+POWERS = list({
+    '^0':'⁰', '^1':'¹', '^2':'²', '^3':'³', '^4':'⁴', '^5':'⁵',
+    '^6':'⁶', '^7':'⁷', '^8':'⁸', '^9':'⁹', '^n':'ⁿ', '^i':'ⁱ'}.items())
+            
+FRACTIONS = list({
+    '1/2': '½', '1/3': '⅓', '1/4': '¼', '1/5': '⅕', '1/6': '⅙',
+    '1/7': '⅐', '1/8': '⅛', '1/9': '⅑', '1/10': '⅒',
+    '2/3': '⅔', '3/4': '¾'}.items())
+             
+# In CommonMark, an HTML comment may be preceded by at most 3 spaces.
+# (?m) turns on re.MULTILINE so that ^ matches at the start of each line
+# (?s) turns on re.DOTALL so that .* matches newlines too
+# .*? is a non-greedy match so that it stops at the first -->
+COMMENT = r'(?ms)^ ? ? ?<!--.*?-->\n?'
 
-def remove_comments(nb: NotebookNode) -> None:
-    """Remove HTML comments from Markdown cells."""
-    for cell in nb.cells:
-        if cell.cell_type == 'markdown':
-            lines = []
-            comment = False
-            for line in cell.source.split('\n'):
-                if re.match(' ? ? ?<!--', line):
-                    comment = True
-                if not comment:
-                    lines.append(line)
-                if '-->' in line:
-                    if not comment:
-                        warning(f'Spurious end of comment:{line}')
-                    else:
-                        comment = False
-                        match = re.search(r'-->(.+)$', line)
-                        if match:
-                            warning(f'Text after comment:{match.group(1)}')
-            cell.source = '\n'.join(lines)
-
-def replace_regexp(nb: NotebookNode, replace:list) -> None:
-    """Apply the replacements to Markdown cells.
-
-    `replace` is a list of pairs of regular expressions (old, new)
-    """
-    # do one substitution at a time to use cached compiled regexp
-    for old, new in replace:
+def _replace(nb, kind, replacements, types):
+    """Internal auxiliary function."""
+    if types == 'all':
+        types = 'markdown code raw'
+    if isinstance(replacements, tuple):
+        replacements = [replacements]
+    for old, new in replacements:
+        if kind == 'C':
+            if len(old) != len(new):
+                error(f'No 1-to-1 replacement for {old}')
+                continue
+            else:
+                substitutions = str.maketrans(old, new)
         for cell in nb.cells:
-            if cell.cell_type == 'markdown':
-                cell.source = re.sub(old, new, cell.source)
+            if cell.cell_type in types:
+                if kind == 'S':    # string substitution
+                    cell.source = cell.source.replace(old, new)
+                elif kind == 'C':  # character substitution
+                    cell.source = cell.source.translate(substitutions)
+                else:               # regexp substitution
+                    cell.source = re.sub(old, new, cell.source)
+        
+def replace_str(nb, types:str, replacements) -> None:
+    """Replace strings in all matching cell types."""
+    _replace(nb, 'S', replacements, types)
 
-def remove_comments(nb: NotebookNode, special:str) -> None:
-    """Remove non-special HTML comments from Markdown cells."""
-    # (?m) turns on re.MULTILINE so that ^ matches at the start of each line
-    # (?s) turns on re.DOTALL so that .* matches newlines too
-    # .*? is a non-greedy match so that it stops at the first -->
-    # (?!re) matches if regular expression re does not match
-    COMMENT = r'(?ms)^ ? ? ?<!-- *(?!' + special + ').*?-->\n?'
-    replace_regexp(nb, [(COMMENT, '')])
+def replace_char(nb, types:str, replacements) -> None:
+    """Replace characters in all matching cell types."""
+    _replace(nb, 'C', replacements, types)
+    
+def replace_re(nb, types:str, replacements) -> None:
+    """Replace regular expressions in all matching cell types."""
+    _replace(nb, 'R', replacements, types)
 
 def add_nbsp(nb, before:str='', after:str='') -> None:
     """Replace spaces between numbers and words with a non-breaking space."""
-    replacements = []
     if before:
-        replacements.append( (fr'({before}) +(\d)', r'\1&nbsp;\2') )
+        replace_re(nb, 'markdown', (fr'({before}) +(\d)', r'\1&nbsp;\2') )
     if after:
-        replacements.append( (fr'(\d) +({after})', r'\1&nbsp;\2') )
-    replace_regexp(nb, replacements)
+        replace_re(nb, 'markdown', (fr'(\d) +({after})', r'\1&nbsp;\2') )
 
 def fix_italics(nb: NotebookNode) -> None:
     """Avoid a Jupyter bug in italics with underscores."""
-    replace_regexp(nb, [
+    replace_re(nb, 'markdown', [
         # replace _text_ with *text* inside [] or || or :] (slice)
         (r'([\[│:])_([A-Za-z0-9 ]+)_([\]│])', r'\1*\2*\3'),
         # replace _text_ with *text* before exponents
         (r'_([A-Za-z0-9 ]+)_([⁰¹²³⁴⁵⁶⁷⁸⁹ⁿⁱ])', r'*\1*\2')
     ])
 
-def spaces(nb: NotebookNode, strip:bool, fix_breaks:bool) -> None:
+def spaces(nb: NotebookNode, fix_breaks:bool) -> None:
     """Handle spaces in cells."""
     for cell in nb.cells:
-        if strip:
-            # cell.source.strip() would remove indentation of first line,
-            # which may matter
-            cell.source = re.sub(r'^\s*\n', '', cell.source.rstrip())
         if cell.cell_type == 'markdown' and '  \n' in cell.source:
             for line in cell.source.split('\n'):
                 if line.endswith('  '):
@@ -140,23 +136,6 @@ def expand_urls(nb, url:dict) -> None:
         if cell.cell_type == 'markdown':
             cell.source = URL.sub(get_url, cell.source)
 
-def replace_text(nb, map:dict, code:bool) -> None:
-    """Apply the replacements in the dictionary."""
-    char = dict()   # maps characters to replacement strings
-    text = dict()   # maps strings to strings
-    for key, value in map.items():
-        if len(key) == 1:
-            char[key] = value
-        else:
-            text[key] = value
-    CHARS = str.maketrans(char)
-
-    for cell in nb.cells:
-        if cell.cell_type == 'markdown' or (code and cell.cell_type == 'code'):
-            cell.source = cell.source.translate(CHARS)
-            for abbrv, expansion in text.items():
-                cell.source = cell.source.replace(abbrv, expansion)
-
 def set_cells(nb, types:str='all', edit=None, delete=None) -> None:
     """Lock or unlock the given types of cells for editing or deletion."""
     if 'all' in types:
@@ -167,3 +146,5 @@ def set_cells(nb, types:str='all', edit=None, delete=None) -> None:
                 cell.metadata.editable = edit
             if delete is not None:
                 cell.metadata.deletable = delete
+
+    
