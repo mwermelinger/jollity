@@ -11,26 +11,26 @@ import re
 POWERS = list({
     '^0':'⁰', '^1':'¹', '^2':'²', '^3':'³', '^4':'⁴', '^5':'⁵',
     '^6':'⁶', '^7':'⁷', '^8':'⁸', '^9':'⁹', '^n':'ⁿ', '^i':'ⁱ'}.items())
-            
+
 FRACTIONS = list({
     '1/2': '½', '1/3': '⅓', '1/4': '¼', '1/5': '⅕', '1/6': '⅙',
     '1/7': '⅐', '1/8': '⅛', '1/9': '⅑', '1/10': '⅒',
     '2/3': '⅔', '3/4': '¾'}.items())
-             
+
 # In CommonMark, an HTML comment may be preceded by at most 3 spaces.
 # (?m) turns on re.MULTILINE so that ^ matches at the start of each line
 # (?s) turns on re.DOTALL so that .* matches newlines too
 # .*? is a non-greedy match so that it stops at the first -->
 COMMENT = r'(?ms)^ ? ? ?<!--.*?-->\n?'
 
-def split_md(nb: NotebookNode) -> None:
+def split_md(nb: NotebookNode, line_comments:list, block_comments:list=None) -> None:
     """Split markdown cells in headings, text, fenced blocks. Remove comments."""
-    ATX = re.compile(r' {0,3}(#{1,6}) +(.+?)( +#+)? *$')
+    ATX = re.compile(r' {0,3}(#{1,6}) +(.+?)[ #]*$')
     FENCE = re.compile(r' {0,3}(`{3,}|~{3,})')
     COMMENT_START = re.compile(r' {0,3}<!--')
     # find first --> in line with non-greedy match .*?
     COMMENT_END = re.compile(r'.*?-->(.*)')
-    
+
     def close(kind, extra=dict()):
         # remove blank lines at start and whitespace at end
         source = re.sub(r'^\s*\n', '', '\n'.join(lines).rstrip())
@@ -41,13 +41,13 @@ def split_md(nb: NotebookNode) -> None:
             if extra:
                 cell.metadata.jollity.update(extra)
             cells.append(cell)
-        
+
     cells = []
     for old_cell in nb.cells:
         if old_cell.cell_type != 'markdown':
             cells.append(old_cell)
             continue
-        
+
         lines = []
         fence = ''      # the opening fence of the current fenced block
         comment = False
@@ -66,15 +66,24 @@ def split_md(nb: NotebookNode) -> None:
                     lines = []
                 else:
                     lines.append(line)
-            elif match := COMMENT_START.match(line):
-                if match := COMMENT_END.match(line):
-                    lines.append(match.group(1))    # text after comment
-                else:
-                    comment = True
+            elif COMMENT_START.match(line):
+                for kind in line_comments:
+                    # (?i) ignores case
+                    if re.match(fr'(?i)<!--\s*{kind}\s*-->', line.strip()):
+                        close('text')
+                        lines = ['']
+                        close(kind)
+                        lines = []
+                        break
+                else:   # not a special comment
+                    if match := COMMENT_END.match(line):
+                        lines.append(match.group(1))    # text after comment
+                    else:
+                        comment = True
             elif match := FENCE.match(line):
                 close('text')
                 fence = match.group(1)  # remember opening sequence of ` or ~
-                lines = [line] 
+                lines = [line]
             elif match := ATX.match(line):
                 close('text')
                 lines = [line]
@@ -83,13 +92,13 @@ def split_md(nb: NotebookNode) -> None:
                     warning(f'Skipped heading level:{line}')
                 close('head', {
                     'level': this_level,
-                    'heading': match.group(2), 
+                    'heading': match.group(2),
                 })
                 previous_level = this_level
                 lines = []
             else:
                 lines.append(line)
-        
+
         close('text')
     nb.cells = cells
 
@@ -114,7 +123,7 @@ def _replace(nb, kind, replacements, types):
                     cell.source = cell.source.translate(substitutions)
                 else:               # regexp substitution
                     cell.source = re.sub(old, new, cell.source)
-        
+
 def replace_str(nb, types:str, replacements) -> None:
     """Replace strings in all matching cell types."""
     _replace(nb, 'S', replacements, types)
@@ -122,7 +131,7 @@ def replace_str(nb, types:str, replacements) -> None:
 def replace_char(nb, types:str, replacements) -> None:
     """Replace characters in all matching cell types."""
     _replace(nb, 'C', replacements, types)
-    
+
 def replace_re(nb, types:str, replacements) -> None:
     """Replace regular expressions in all matching cell types."""
     _replace(nb, 'R', replacements, types)
@@ -153,37 +162,6 @@ def spaces(nb: NotebookNode, fix_breaks:bool) -> None:
             if fix_breaks:
                 cell.source = re.sub(r'  +\n', r'\\\n', cell.source)
 
-def extract_answers(nb, old:str, new:str) -> None:
-    """Put answer templates in separate cells. Metadata is lost."""
-    cells = []
-    for cell in nb.cells:
-        if cell.cell_type != 'markdown':
-            cells.append(cell)
-        else:
-            lines = []
-            code = False
-            for line in cell.source.split('\n'):
-                if line.startswith('```'):
-                    code = not code
-                if line == old and not code:
-                    if lines:
-                        cells.append(nb4.new_markdown_cell(
-                            source='\n'.join(lines),
-                            metadata=cell.metadata
-                        ))
-
-                    new_cell = nb4.new_markdown_cell(new)
-                    new_cell.metadata.jollity = {'kind': 'answer'}
-                    cells.append(new_cell)
-                    
-                    lines = []          # start new cell
-                else:
-                    lines.append(line)
-
-            if lines:
-                cells.append(nb4.new_markdown_cell('\n'.join(lines)))
-    nb.cells = cells
-    
 def expand_urls(nb, url:dict) -> None:
     """Replace labels with URLs in Markdown links."""
     def get_url(match) -> str:
@@ -210,5 +188,3 @@ def set_cells(nb, types:str='all', edit=None, delete=None) -> None:
                 cell.metadata.editable = edit
             if delete is not None:
                 cell.metadata.deletable = delete
-
-    

@@ -63,6 +63,54 @@ If you want the log file to start afresh every time you run the script, write
 logging.basicConfig(filename='log.txt', filemode='w')
 ```
 
+## Markdown
+Jollity doesn't include a full Markdown parser. It only assumes the following.
+
+- An HTML comment starts in a line beginning with 0–3 spaces followed by `<!--`.
+- An HTML comment ends at the first occurrence of `-->`.
+- A fenced block starts in a line beginning with 0–3 spaces, followed by
+  3 or more backticks or by 3 or more tildes.
+- A fenced block ends in a line with 0–3 spaces followed by
+  at least as many backticks or tildes as it started.
+- Within HTML comments, backticks and tildes don't start fenced blocks.
+- Within a fenced block, the characters `<!--` don't start an HTML comment.
+- A heading is a line of the form: 0–3 spaces, 1-6 hashes, 1 or more spaces,
+  heading text, optional spaces and hashes.
+
+## Split Markdown
+To facilitate processing, the first step is to split Markdown cells into
+headings, text, fenced blocks and special HTML comments.
+An HTML comment is special if it consists of a single word indicated by you.
+Jollity does a case-insensitive matching when looking for special comments.
+Jollity removes other HTML comments
+You must indicate to Hollity
+
+
+For example, you can have a special comment `<!-- ANSWER -->` that leads to
+a Markdown cell with text _Write your answer here._ in the deployed notebooks,
+but nothing in the PDF and HTML versions.
+```py
+split_md(nb, line_comments:list)
+```
+This function must be called first. The second argument is a list of strings.
+Any single-line comment that only consists of one such string is replaced with
+an empty Markdown cell of the kind given by the string.
+
+For example,
+the call `split_md(nb, ['answer'])` splits cell
+```
+## Question
+Question text.
+<!-- answer here -->
+<!-- ANSWER -->
+```
+into three cells: the first has the heading;
+the second has the question text but not the  `answer here` comment;
+the third is empty.
+Each cell's metadata records the kind of cell (`head`, `text` and `answer`)
+so that later processing can affect only certain kinds of Markdown cells.
+Fenced blocks are put in their own cells, of kind `fence`.
+
 ## Remove comments
 When authoring, you may wish to keep notes, ideas, draft paragraphs,
 alternative exercise solutions, to-do reminders and similar kinds of text
@@ -156,8 +204,7 @@ The example above generates this message because `ou` is not in the dictionary
 created by `generate_doc.py`.
 
 ## Replace text
-<!-- To do: document replace_char/str/re -->
-Jollity provides three functions to replace text. 
+Jollity provides three functions to replace text.
 They can be used for various purposes.
 
 ### Replace characters
@@ -167,15 +214,15 @@ replaced with those special characters.
 ```py
 replace_char(nb, types:str, replacements:list)
 ```
-This function applies the given replacements to all cells of the given types. 
+This function applies the given replacements to all cells of the given types.
+<!-- To do: update arguments -->
 The replacements are a list of character pairs (old, new).
-The replacements are applied in the given order.
 For example, for my algorithms book I do
 ```py
-replace_char(nb, 'markdown code', [('ø', 'Θ'), ('·', '×')])
+replace_char(nb, 'markdown code', [('ø·', 'Θ×')])
 ```
-This replaces in all code and markdown cells ø (Alt-o on my keyboard) with 
-uppercase Theta (which has no keyboard shortcut) and then 
+This replaces in all code and markdown cells ø (Alt-o on my keyboard) with
+uppercase Theta (which has no keyboard shortcut) and
 · (Alt-Shift-9) with ×.
 
 Jollity replaces all occurrences of the old character by the new character,
@@ -184,11 +231,12 @@ For example, in the rare occasions I do need the dot product sign, I write it
 in LaTeX: `$\cdot$`.
 
 ### Replace strings
-Jollity can also replace strings with strings. 
+Jollity can also replace strings with strings.
+The replacements are applied in the given order.
 ```py
 replace_char(nb, types:str, replacements:list)
 ```
-This function is like `replace_char` but with the replacements being a list of 
+This function is like `replace_char` but with the replacements being a list of
 pairs of strings, e.g.
 ```py
 replace_char(nb, 'markdown', [('(c)', '©'), ('etc.', 'and so on')])
@@ -201,13 +249,13 @@ Jollity defines two replacement lists you can pass to this function:
 - `FRACTIONS` replaces 1/2, ..., 1/10, 2/3, 3/4 with ½, ..., ⅒, ⅔, ¾.
 
 ### Replace regular expressions
-       
+
 <!-- Previous blank line should be removed. Next spaces shouldn't. -->
    The most powerful function replaces text that matches a regular expression.
 ```py
 replace_re(nb, types:str, replacements:list)
 ```
-This function is like the previous two but the replacements are a list of 
+This function is like the previous two but the replacements are a list of
 pairs of regular expressions. For example, the following removes from each cell,
 including raw cells, blank lines at the start and whitespace at the end.
 (Removing all whitespace from the start would remove the first line's
@@ -247,7 +295,7 @@ Jollity can report invisible line breaks and replace them with visible ones.
 spaces(nb, fix_breaks:bool)
 ```
 This function reports invisible line breaks in Markdown cells and,
-if `fix_breaks` is true, replaces them with a backslash,  
+if `fix_breaks` is true, replaces them with a backslash,
 like for this sentence.
 ```
 WARNING:Invisible line break:...
@@ -263,28 +311,3 @@ fix_italics(nb)
 This function replaces underscores with asterisks in some contexts,
 to avoid the rendering bug. This function may not cater for all the
 possibilities in your text, so double-check your notebooks.
-
-<!-- To do: make it part of split_md; currently loses metadata
-## Extract answers
-You can mark with special text where you want students to write answers
-and Jollity will create _separate_ Markdown cells with boilerplate text.
-This allows students to write their answers while still seeing
-the rendered question, instead of its Markdown source.
-```py
-extract_answers(nb, old:str, new:str)
-```
-This function goes through all Markdown cells and for each line that matches
-exactly `old`, it creates a new Markdown cell with text `new`. For example,
-for my algorithms book I first call
-```py
-remove_comments(nb, 'ANSWER')
-```
-and later, after generating the PDF and HTML, I call
-```py
-extract_headers(nb, '<!-- ANSWER --', '_Write your answer here._')
-```
-By using a comment as the marker, nothing appears in the PDF or HTML, while
-    <!-- ANSWER --
-appears in the final notebooks.
-
--->

@@ -13,7 +13,7 @@ def generate_nb(source: str, target: str):
         nb = jupytext.read(source)
 
         # Process the notebook
-        jollity.split_md(nb)
+        jollity.split_md(nb, ['answer'])
         # jollity.extract_answers(nb,
         #      '    <!-- ANSWER -->', '_Write your answer here._')
         jollity.spaces(nb, fix_breaks=True)
@@ -32,7 +32,7 @@ def generate_nb(source: str, target: str):
             ('1/4', '¼'), ('=>', '⇒'), ('e.g.', 'for example')
         ])
         jollity.set_cells(nb, 'markdown', edit=True, delete=False)
-         
+
         # Replace extension .md with .ipynb and write the file
         path, _ = os.path.splitext(target)
         jupytext.write(nb, path + '.ipynb')
