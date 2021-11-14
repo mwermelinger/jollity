@@ -24,7 +24,7 @@ def generate_nb(source: str, target: str):
             'nbsphinx': 'https://nbsphinx.readthedocs.io',
             'jubook': 'https://jupyterbook.org',
         })
-        jollity.replace_char(nb, 'markdown', ('Ø', 'O'))
+        jollity.replace_char(nb, 'md:text', ('Ø', 'O'))
         jollity.replace_str(nb, 'markdown', jollity.POWERS)
         jollity.replace_str(nb, 'markdown', [
             ('1/4', '¼'), ('=>', '⇒'), ('e.g.', 'for example')

@@ -208,16 +208,21 @@ created by `generate_doc.py`.
 Jollity provides three functions to replace text.
 They can be used for various purposes.
 
+Each function accepts a string with the kinds of cells that should be processed,
+which can be: `all` for all cells;
+`code`, `raw` and `markdown` for all cells of that kind;
+`md:text`, `md:fence`, `md:head`, etc. for only certain kinds of Markdown cells.
+
 ### Replace characters
 If you frequently need to type special characters for which there's no keyboard
 shortcut, you can tell Jollity which quick-to-type characters should be
 replaced with those special characters.
 ```py
-replace_char(nb, types:str, replacements:list)
+replace_char(nb, kinds:str, replacements:list)
 ```
-This function applies the given replacements to all cells of the given types.
+This function applies the given replacements to all cells of the given kinds.
 <!-- To do: update arguments -->
-The replacements are a list of character pairs (old, new).
+The replacements are a list of string pairs (old, new).
 For example, for my algorithms book I do
 ```py
 replace_char(nb, 'markdown code', [('ø·', 'Θ×')])
@@ -235,10 +240,10 @@ in LaTeX: `$\cdot$`.
 Jollity can also replace strings with strings.
 The replacements are applied in the given order.
 ```py
-replace_char(nb, types:str, replacements:list)
+replace_char(nb, kinds:str, replacements:list)
 ```
-This function is like `replace_char` but with the replacements being a list of
-pairs of strings, e.g.
+This function is like `replace_char` but the string pairs are not
+interpreted as separate character by character replacements:
 ```py
 replace_char(nb, 'markdown', [('(c)', '©'), ('etc.', 'and so on')])
 ```
@@ -254,7 +259,7 @@ Jollity defines two replacement lists you can pass to this function:
 <!-- Previous blank line should be removed. Next spaces shouldn't. -->
    The most powerful function replaces text that matches a regular expression.
 ```py
-replace_re(nb, types:str, replacements:list)
+replace_re(nb, kinds:str, replacements:list)
 ```
 This function is like the previous two but the replacements are a list of
 pairs of regular expressions. For example, the following removes from each cell,

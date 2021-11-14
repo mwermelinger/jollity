@@ -114,39 +114,46 @@ def split_md(nb: NotebookNode, line_comments:list, block_comments:list) -> None:
         close('text')
     nb.cells = cells
 
-def _replace(nb, kind, replacements, types):
+def filter_cells(nb, kinds:str):
+    """Return one by one all cells of the given kinds."""
+    for cell in nb.cells:
+        if kinds == 'all' or cell.cell_type in kinds:
+            yield cell
+        elif cell.cell_type == 'markdown':
+            if f'md:{cell.metadata.jollity.kind}' in kinds:
+                yield cell
+
+def _replace(what:str, nb, kinds, replacements):
     """Internal auxiliary function."""
-    if types == 'all':
-        types = 'markdown code raw'
     if isinstance(replacements, tuple):
         replacements = [replacements]
+    cells = list(filter_cells(nb, kinds))
     for old, new in replacements:
-        if kind == 'C':
+        if what == 'C':
             if len(old) != len(new):
                 error(f'No 1-to-1 replacement for {old}')
                 continue
             else:
                 substitutions = str.maketrans(old, new)
-        for cell in nb.cells:
-            if cell.cell_type in types:
-                if kind == 'S':    # string substitution
-                    cell.source = cell.source.replace(old, new)
-                elif kind == 'C':  # character substitution
-                    cell.source = cell.source.translate(substitutions)
-                else:               # regexp substitution
-                    cell.source = re.sub(old, new, cell.source)
+        for cell in cells:
+            if what == 'S':    # string substitution
+                cell.source = cell.source.replace(old, new)
+            elif what == 'C':  # character substitution
+                cell.source = cell.source.translate(substitutions)
+            else:               # regexp substitution
+                cell.source = re.sub(old, new, cell.source)
 
-def replace_str(nb, types:str, replacements) -> None:
-    """Replace strings in all matching cell types."""
-    _replace(nb, 'S', replacements, types)
+def replace_str(nb, kinds:str, replacements) -> None:
+    """Replace strings in all cells of the given kinds."""
+    _replace('S', nb, kinds, replacements)
 
-def replace_char(nb, types:str, replacements) -> None:
-    """Replace characters in all matching cell types."""
-    _replace(nb, 'C', replacements, types)
+def replace_char(nb, kinds:str, replacements) -> None:
+    """Replace characters in all cells of the given kinds."""
+    _replace('C', nb, kinds, replacements)
 
-def replace_re(nb, types:str, replacements) -> None:
-    """Replace regular expressions in all matching cell types."""
-    _replace(nb, 'R', replacements, types)
+def replace_re(nb, kinds:str, replacements) -> None:
+    """Replace regular expressions in all cells of the given kinds."""
+    _replace('R', nb, kinds, replacements)
 
 def add_nbsp(nb, before:str='', after:str='') -> None:
     """Replace spaces between numbers and words with a non-breaking space."""
