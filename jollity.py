@@ -23,7 +23,7 @@ FRACTIONS = list({
 # .*? is a non-greedy match so that it stops at the first -->
 COMMENT = r'(?ms)^ ? ? ?<!--.*?-->\n?'
 
-def split_md(nb: NotebookNode, line_comments:list, block_comments:list=None) -> None:
+def split_md(nb: NotebookNode, line_comments:list, block_comments:list) -> None:
     """Split markdown cells in headings, text, fenced blocks. Remove comments."""
     ATX = re.compile(r' {0,3}(#{1,6}) +(.+?)[ #]*$')
     FENCE = re.compile(r' {0,3}(`{3,}|~{3,})')
@@ -50,13 +50,22 @@ def split_md(nb: NotebookNode, line_comments:list, block_comments:list=None) -> 
 
         lines = []
         fence = ''      # the opening fence of the current fenced block
-        comment = False
+        comment = None
         previous_level = math.inf
         for line in old_cell.source.split('\n'):
-            if comment:
+            if comment == 'normal':
                 if match := COMMENT_END.match(line):
-                    comment = False
+                    comment = None
                     lines.append(match.group(1))    # text after comment
+                # else ignore current line
+            elif comment:
+                # (?i) ignores case
+                if re.match(fr'(?i) ? ? ?<!--\s*{comment}\s*-->\s*$', line):
+                    close(comment)
+                    lines = []
+                    comment = None
+                else:
+                    lines.append(line)
             elif fence:
                 match = FENCE.match(line)
                 if match and match.group(1).startswith(fence):
@@ -66,20 +75,23 @@ def split_md(nb: NotebookNode, line_comments:list, block_comments:list=None) -> 
                     lines = []
                 else:
                     lines.append(line)
+            # line is outside comment and fenced block
             elif COMMENT_START.match(line):
-                for kind in line_comments:
-                    # (?i) ignores case
+                for kind in line_comments + block_comments:
                     if re.match(fr'(?i)<!--\s*{kind}\s*-->', line.strip()):
                         close('text')
-                        lines = ['']
-                        close(kind)
+                        if kind in line_comments:
+                            lines = ['']
+                            close(kind)
+                        else:
+                            comment = kind
                         lines = []
                         break
                 else:   # not a special comment
                     if match := COMMENT_END.match(line):
                         lines.append(match.group(1))    # text after comment
                     else:
-                        comment = True
+                        comment = 'normal'
             elif match := FENCE.match(line):
                 close('text')
                 fence = match.group(1)  # remember opening sequence of ` or ~

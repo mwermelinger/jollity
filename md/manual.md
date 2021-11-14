@@ -76,88 +76,89 @@ Jollity doesn't include a full Markdown parser. It only assumes the following.
 - Within a fenced block, the characters `<!--` don't start an HTML comment.
 - A heading is a line of the form: 0–3 spaces, 1-6 hashes, 1 or more spaces,
   heading text, optional spaces and hashes.
+- The end of a Markdown cell also ends any HTML comment or fenced block.
 
 ## Split Markdown
 To facilitate processing, the first step is to split Markdown cells into
+smaller cells of particular kinds:
 headings, text, fenced blocks and special HTML comments.
+(Non-special HTML comments are removed.)
+The kind of each cell is stored in the notebook. This allows processing steps
+to only handle some cells, e.g. only number headings.
+
 An HTML comment is special if it consists of a single word indicated by you.
-Jollity does a case-insensitive matching when looking for special comments.
-Jollity removes other HTML comments
-You must indicate to Hollity
+The word is also used to record the kind of comment.
+Jollity does a case-insensitive matching when looking for special comments, e.g.
+the word `answer` will match comments `<!-- ANSWER -->`, `<!-- Answer -->`
+and others.
 
-
+You will have to define functions that process special comments.
 For example, you can have a special comment `<!-- ANSWER -->` that leads to
 a Markdown cell with text _Write your answer here._ in the deployed notebooks,
 but nothing in the PDF and HTML versions.
-```py
-split_md(nb, line_comments:list)
+
+You can also have block comments: they start and end with the same
+one-line comment. For example, with Jollity you can replace
 ```
-This function must be called first. The second argument is a list of strings.
-Any single-line comment that only consists of one such string is replaced with
-an empty Markdown cell of the kind given by the string.
+<!-- NOTE -->
+Jollity only processes ATX headings, not Setext headings.
+<!-- NOTE -->
+```
+with a coloured alert box.
+```py
+split_md(nb, line_comments:list, block_comments:list)
+```
+This function must be called first. The arguments are lists of strings.
+Every single-line or block comment consisting of one of those strings is
+replaced with a Markdown cell of the kind given by the string.
+For a single-line comment, the resulting cell is empty; for a block comment,
+the cell has the content between the start and end of the block.
 
 For example,
-the call `split_md(nb, ['answer'])` splits cell
+the call `split_md(nb, ['answer'], ['hint'])` splits this Markdown text
 ```
 ## Question
 Question text.
 <!-- answer here -->
 <!-- ANSWER -->
+<!-- HINT -->
+Use the same method as in the previous exercise.
+<!-- HINT -->
 ```
-into three cells: the first has the heading;
-the second has the question text but not the  `answer here` comment;
-the third is empty.
-Each cell's metadata records the kind of cell (`head`, `text` and `answer`)
-so that later processing can affect only certain kinds of Markdown cells.
-Fenced blocks are put in their own cells, of kind `fence`.
+into four cells:
 
-## Remove comments
-When authoring, you may wish to keep notes, ideas, draft paragraphs,
+1. A cell of kind `head` with the heading.
+2. A cell of kind `text` with the second line but not the third line.
+3. An empty cell of kind `answer`.
+4. A cell of kind `hint` with the sixth line.
+
+Fenced blocks are put in cells of kind `fence`.
+
+<!-- When authoring, you may wish to keep notes, ideas, draft paragraphs,
 alternative exercise solutions, to-do reminders and similar kinds of text
 in the notebook, where it's relevant, rather than in a separate document.
 You can write such text within HTML comments,
 so that it isn't rendered in the notebook.
 However, readers will see the comments if they edit the cells.
-Jollity can remove them before you deliver the notebooks to your audience.
-```py
-jollity.remove_comments(nb, special:str)
-```
-This function removes HTML comments from all Markdown cells in notebook `nb`.
-In line with the CommonMark specification, this function only removes comments
-that start with `<!--` at the beginning of a line, preceded by at most
-three spaces.
-
-Argument `special` is a regular expression.
-If the start of a comment matches it, the comment is not removed.
-
-This function is usually called before the others.
+Jollity can remove them before you deliver the notebooks to your audience. -->
 
 <!-- single-line comment -->
-<!-- INFO
-
-<!-- INFO --><!-- This comment is kept. -->
+<!-- INFO -->
+Some info text.
+<!-- INFO -->
   <!--
   multi-line comment
   indented by two spaces
-  -->
+  --><!-- This comment is kept. -->
 
-## Extract headers
-```py
-extract_headers(nb)
-```
-This function puts headers in their own Markdown cells, with extra metadata to
-make their subsequent processing easier. Jollity only detects ATX headers,
-i.e. those starting with one or more hash symbols.
-Lines starting with hash symbols within code blocks are not considered headers.
-A code block starts and ends with triple backticks.
-```
+<!-- ```
 WARNING:Skipped heading level:...
 ```
 This message indicates that header `...` is more than one level below
 the previous header, e.g. you went from a level 1 to a level 3 header
 without any level-2 header in between.
 
-#### Warning: level-4 heading
+#### Warning: level-4 heading -->
 
 ## Add non-breaking spaces
 Text like 'Part 1' and '23 kg' should use non-breaking spaces.

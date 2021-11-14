@@ -13,9 +13,7 @@ def generate_nb(source: str, target: str):
         nb = jupytext.read(source)
 
         # Process the notebook
-        jollity.split_md(nb, ['answer'])
-        # jollity.extract_answers(nb,
-        #      '    <!-- ANSWER -->', '_Write your answer here._')
+        jollity.split_md(nb, ['answer'], ['info', 'node'])
         jollity.spaces(nb, fix_breaks=True)
         jollity.add_nbsp(nb, before=r'Part|Unit|[Cc]ell')
         jollity.add_nbsp(nb, after=r'kg|m') # done separately for testing
