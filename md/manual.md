@@ -82,7 +82,6 @@ Jollity doesn't include a full Markdown parser. It only assumes the following.
 To facilitate processing, the first step is to split Markdown cells into
 smaller cells of particular kinds:
 headings, text, fenced blocks and special HTML comments.
-(Non-special HTML comments are removed.)
 The kind of each cell is stored in the notebook. This allows processing steps
 to only handle some cells, e.g. only number headings.
 
@@ -128,7 +127,7 @@ Use the same method as in the previous exercise.
 into four cells:
 
 1. A cell of kind `head` with the heading.
-2. A cell of kind `text` with the second line but not the third line.
+2. A cell of kind `text` with the second and third lines.
 3. An empty cell of kind `answer`.
 4. A cell of kind `hint` with the sixth line.
 
@@ -269,7 +268,23 @@ indentation, which may be significant.)
 ```py
 jollity.replace_re(nb, 'all', [(r'^\s*\n', ''), (r'\s+$', '')])
 ```
+Jollity defines a regular expression `COMMENTS` for HTML comments. The call
+```py
+jollity.replace_re(nb, 'md:text', (jollity.COMMENT, ''))
+```
+removes all comments from Markdown text cells. For example, the cell
+```
+This is some text. <!-- To do: needs better explanation -->
+<!-- Should have a figure here -->
+Next line of text.
+```
+becomes
+```
+This is some text. <!-- To do: needs better explanation -->
 
+Next line of text.
+```
+because only the second comment begins after 0–3 spaces at the start of a line.
 ## (Un)Lock cells
 Jupyter notebook cells can be locked against accidental deletion or change.
 If users want to edit or delete a locked cell, they have to unlock it first.

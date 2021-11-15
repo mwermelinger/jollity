@@ -21,7 +21,7 @@ FRACTIONS = list({
 # (?m) turns on re.MULTILINE so that ^ matches at the start of each line
 # (?s) turns on re.DOTALL so that .* matches newlines too
 # .*? is a non-greedy match so that it stops at the first -->
-COMMENT = r'(?ms)^ ? ? ?<!--.*?-->\n?'
+COMMENT = r'(?ms)^ {0,3}<!--.*?-->'
 
 def split_md(nb: NotebookNode, line_comments:list, block_comments:list) -> None:
     """Split markdown cells in headings, text, fenced blocks. Remove comments."""
@@ -32,10 +32,8 @@ def split_md(nb: NotebookNode, line_comments:list, block_comments:list) -> None:
     COMMENT_END = re.compile(r'.*?-->(.*)')
 
     def close(kind, extra=dict()):
-        # remove blank lines at start and whitespace at end
-        source = re.sub(r'^\s*\n', '', '\n'.join(lines).rstrip())
-        if source:
-            cell = nb4.new_markdown_cell(source)
+        if lines:
+            cell = nb4.new_markdown_cell('\n'.join(lines))
             cell.metadata = {'jollity': {'kind': kind}}
             cell.metadata.update(old_cell.metadata)
             if extra:
@@ -56,8 +54,7 @@ def split_md(nb: NotebookNode, line_comments:list, block_comments:list) -> None:
             if comment == 'normal':
                 if match := COMMENT_END.match(line):
                     comment = None
-                    lines.append(match.group(1))    # text after comment
-                # else ignore current line
+                lines.append(line)
             elif comment:
                 # (?i) ignores case
                 if re.match(fr'(?i) ? ? ?<!--\s*{comment}\s*-->\s*$', line):
@@ -88,9 +85,8 @@ def split_md(nb: NotebookNode, line_comments:list, block_comments:list) -> None:
                         lines = []
                         break
                 else:   # not a special comment
-                    if match := COMMENT_END.match(line):
-                        lines.append(match.group(1))    # text after comment
-                    else:
+                    lines.append(line)
+                    if not COMMENT_END.match(line):
                         comment = 'normal'
             elif match := FENCE.match(line):
                 close('text')
@@ -114,20 +110,19 @@ def split_md(nb: NotebookNode, line_comments:list, block_comments:list) -> None:
         close('text')
     nb.cells = cells
 
-def filter_cells(nb, kinds:str):
-    """Return one by one all cells of the given kinds."""
-    for cell in nb.cells:
-        if kinds == 'all' or cell.cell_type in kinds:
-            yield cell
-        elif cell.cell_type == 'markdown':
-            if f'md:{cell.metadata.jollity.kind}' in kinds:
-                yield cell
+def _cells(nb, kinds:str) -> list:
+    """Internal function: return all cells of the given kinds."""
+    if kinds == 'all':
+        return nb.cells
+    return [c for c in nb.cells if c.cell_type in kinds or
+            (c.cell_type[0] == 'm' and f'md:{c.metadata.jollity.kind}' in kinds)
+    ]
 
 def _replace(what:str, nb, kinds, replacements):
     """Internal auxiliary function."""
     if isinstance(replacements, tuple):
         replacements = [replacements]
-    cells = list(filter_cells(nb, kinds))
+    cells = _cells(nb, kinds)
     for old, new in replacements:
         if what == 'C':
             if len(old) != len(new):
