@@ -158,22 +158,6 @@ def remove_empty(nb, kinds:str) -> None:
     """Remove all empty cells of the given kinds."""
     nb.cells = [c for c in nb.cells if c.source or not _is_kind(c, kinds)]
 
-def add_nbsp(nb, before:str='', after:str='') -> None:
-    """Replace spaces between numbers and words with a non-breaking space."""
-    if before:
-        replace_re(nb, 'markdown', (fr'({before}) +(\d)', r'\1&nbsp;\2') )
-    if after:
-        replace_re(nb, 'markdown', (fr'(\d) +({after})', r'\1&nbsp;\2') )
-
-def fix_italics(nb: NotebookNode) -> None:
-    """Avoid a Jupyter bug in italics with underscores."""
-    replace_re(nb, 'markdown', [
-        # replace _text_ with *text* inside [] or || or :] (slice)
-        (r'([\[│:])_([A-Za-z0-9 ]+)_([\]│])', r'\1*\2*\3'),
-        # replace _text_ with *text* before exponents
-        (r'_([A-Za-z0-9 ]+)_([⁰¹²³⁴⁵⁶⁷⁸⁹ⁿⁱ])', r'*\1*\2')
-    ])
-
 def spaces(nb: NotebookNode, fix_breaks:bool) -> None:
     """Handle spaces in cells."""
     for cell in nb.cells:

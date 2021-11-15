@@ -83,7 +83,7 @@ To facilitate processing, the first step is to split Markdown cells into
 smaller cells of particular kinds:
 headings, text, fenced blocks and special HTML comments.
 The kind of each cell is stored in the notebook. This allows processing steps
-to only handle some cells, e.g. only number headings.
+to only handle some cells, e.g. only number the headings.
 
 An HTML comment is special if it consists of a single word indicated by you.
 The word is also used to record the kind of comment.
@@ -93,8 +93,9 @@ and others.
 
 You will have to define functions that process special comments.
 For example, you can have a special comment `<!-- ANSWER -->` that leads to
-a Markdown cell with text _Write your answer here._ in the deployed notebooks,
-but nothing in the PDF and HTML versions.
+a Markdown cell with text
+<!-- ANSWER -->
+in the deployed notebooks, but nothing in the PDF and HTML versions.
 
 You can also have block comments: they start and end with the same
 one-line comment. For example, with Jollity you can replace
@@ -103,7 +104,10 @@ one-line comment. For example, with Jollity you can replace
 Jollity only processes ATX headings, not Setext headings.
 <!-- NOTE -->
 ```
-with a coloured alert box.
+with a coloured alert box:
+<!-- NOTE -->
+Jollity only processes ATX headings, not Setext headings.
+<!-- NOTE -->
 ```py
 split_md(nb, line_comments:list, block_comments:list)
 ```
@@ -142,9 +146,6 @@ However, readers will see the comments if they edit the cells.
 Jollity can remove them before you deliver the notebooks to your audience. -->
 
 <!-- single-line comment -->
-<!-- INFO -->
-Some info text.
-<!-- INFO -->
   <!--
   multi-line comment
   indented by two spaces
@@ -165,29 +166,6 @@ remove_empty(nb, kinds:str)
 ```
 This function removes all empty cells of the given kinds.
 A cell with blank lines is _not_ considered empty.
-
-## Add non-breaking spaces
-Text like 'Part 1' and '23 kg' should use non-breaking spaces.
-Jollity can automatically insert them.
-```py
-add_nbsp(nb, before:str, after:str)
-```
-This function goes through the Markdown cells of notebook `nb` and
-replaces one or more spaces between a word and a digit
-with a single non-breaking space (`&nbsp;`).
-Arguments `before` and `after` must be Python
-[regular expressions](https://docs.python.org/3/library/re.html).
-They indicate which words come respectively before and after a number for
-a non-breaking space to be inserted. For example,
-`add_nbsp(nb, r'Unit|[Cc]ell', r'kg|m')` replaces the space before/after
-the digit in 'Unit 1', 'cell 4', '5 kg, '3.25 metres', '2 ms' (milliseconds),
-'6 marble columns', but not in 'unit 1', '5 cells', '3 KG', '3 and 5'.
-This function replaces spaces, it doesn't create them:
-it won't insert a non-breaking space in '3kg'.
-
-If you don't want any space before or after a digit to be replaced,
-omit the corresponding argument, e.g. `add_nbsp(nb, after=r'kg')`
-replaces spaces only in text like '3 kg' and nothing else.
 
 ## Expand URLs
 If you use some URLs repeatedly or URLs that change regularly,
@@ -214,10 +192,13 @@ created by `generate_doc.py`.
 Jollity provides three functions to replace text.
 They can be used for various purposes.
 
-Each function accepts a string with the kinds of cells that should be processed,
-which can be: `all` for all cells;
-`code`, `raw` and `markdown` for all cells of that kind;
+Each function accepts a string with the kinds of cells to be processed:
+`all` for all cells; `code`, `raw` and `markdown` for all cells of that kind;
 `md:text`, `md:fence`, `md:head`, etc. for only certain kinds of Markdown cells.
+
+Each function takes a list of (old, new) string pairs, or a single pair.
+The function applies the replacements, in the order given,
+to all cells of the given kinds.
 
 ### Replace characters
 If you frequently need to type special characters for which there's no keyboard
@@ -226,32 +207,33 @@ replaced with those special characters.
 ```py
 replace_char(nb, kinds:str, replacements:list)
 ```
-This function applies the given replacements to all cells of the given kinds.
-<!-- To do: update arguments -->
-The replacements are a list of string pairs (old, new).
+This function usually only takes a single (old, new) string pair.
+Both strings must be of the same length:
+the n-th character in old is replaced with the n-th character in new.
+If the strings differ in length, there's an error message
+and no replacement is done.
+
 For example, for my algorithms book I do
 ```py
-replace_char(nb, 'markdown code', [('ø·', 'Θ×')])
+replace_char(nb, 'markdown code', ('ø·', 'Θ×'))
 ```
 This replaces in all code and markdown cells ø (Alt-o on my keyboard) with
-uppercase Theta (which has no keyboard shortcut) and
-· (Alt-Shift-9) with ×.
+uppercase Theta (which has no keyboard shortcut) and · (Alt-Shift-9) with ×.
 
 Jollity replaces all occurrences of the old character by the new character,
 so make sure you don't use the old character for other purposes.
-For example, in the rare occasions I do need the dot product sign, I write it
+In the rare occasions I do need the dot product sign, I write it
 in LaTeX: `$\cdot$`.
 
 ### Replace strings
 Jollity can also replace strings with strings.
-The replacements are applied in the given order.
 ```py
-replace_char(nb, kinds:str, replacements:list)
+replace_str(nb, kinds:str, replacements)
 ```
 This function is like `replace_char` but the string pairs are not
 interpreted as separate character by character replacements:
 ```py
-replace_char(nb, 'markdown', [('(c)', '©'), ('etc.', 'and so on')])
+replace_str(nb, 'markdown', [('(c)', '©'), ('etc.', 'and so on')])
 ```
 Jollity defines two replacement lists you can pass to this function:
 
@@ -262,36 +244,45 @@ Jollity defines two replacement lists you can pass to this function:
 
 ### Replace regular expressions
 
-<!-- Previous blank line should be removed. Next spaces shouldn't. -->
+<!-- This and previous blank line will be removed. Next spaces won't. -->
    The most powerful function replaces text that matches a regular expression.
 ```py
-replace_re(nb, kinds:str, replacements:list)
+replace_re(nb, kinds:str, replacements)
 ```
-This function is like the previous two but the replacements are a list of
-pairs of regular expressions. For example, the following removes from each cell,
-including raw cells, blank lines at the start and whitespace at the end.
-(Removing all whitespace from the start would remove the first line's
-indentation, which may be significant.)
-```py
-jollity.replace_re(nb, 'all', [(r'^\s*\n', ''), (r'\s+$', '')])
-```
+This function is like the previous two but the strings are regular expressions.
+With this function you can, among other things:
+
+- Remove all leading or all trailing whitespace from cells.
+- Replace consecutive blank lines with a single one.
+- Insert text at the beginning or end of a cell.
+- Replace spaces between certain words and digits with a non-breaking space,
+  e.g. turn `Act  1 lasts 2 h` into `Act&nbsp;1 lasts 2&nbsp;h`.
+- Replace `_text_` with `*text*` in some contexts, to make Jupyter render
+  italics correctly, e.g. [_within square brackets_].
+
+If you don't know how to write
+[regular expressions](https://docs.python.org/3/library/re.html) in Python,
+you should learn to: they are very powerful.
+You can see examples of the above in file `generate_doc.py`.
+
 Jollity defines a regular expression `COMMENTS` for HTML comments. The call
 ```py
 jollity.replace_re(nb, 'md:text', (jollity.COMMENT, ''))
 ```
-removes all comments from Markdown text cells. For example, the cell
+removes all comments from Markdown text cells, e.g.
 ```
-This is some text. <!-- To do: needs better explanation -->
+This is some text. <!-- To do: needs rewriting -->
 <!-- Should have a figure here -->
 Next line of text.
 ```
 becomes
 ```
-This is some text. <!-- To do: needs better explanation -->
+This is some text. <!-- To do: needs rewriting -->
 
 Next line of text.
 ```
 because only the second comment begins after 0–3 spaces at the start of a line.
+
 ## (Un)Lock cells
 Jupyter notebook cells can be locked against accidental deletion or change.
 If users want to edit or delete a locked cell, they have to unlock it first.
@@ -329,13 +320,3 @@ like for this sentence.
 WARNING:Invisible line break:...
 ```
 This message indicates that line `...` has two or more spaces at the end.
-
-## Fix italics
-Some Jupyter interfaces don't render italics text correctly in some situations,
-e.g. `[_text_]`.
-```py
-fix_italics(nb)
-```
-This function replaces underscores with asterisks in some contexts,
-to avoid the rendering bug. This function may not cater for all the
-possibilities in your text, so double-check your notebooks.
