@@ -159,6 +159,13 @@ without any level-2 header in between.
 
 #### Warning: level-4 heading -->
 
+## Remove empty cells
+```py
+remove_empty(nb, kinds:str)
+```
+This function removes all empty cells of the given kinds.
+A cell with blank lines is _not_ considered empty.
+
 ## Add non-breaking spaces
 Text like 'Part 1' and '23 kg' should use non-breaking spaces.
 Jollity can automatically insert them.

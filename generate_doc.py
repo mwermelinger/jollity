@@ -20,6 +20,7 @@ def generate_nb(source: str, target: str):
             (r'\s+$', ''),          # remove trailing white space
             (r'(?m)^\s*\n', '\n')   # replace 1 or more blank lines by one only
         ])
+        jollity.remove_empty(nb, 'all')
         jollity.spaces(nb, fix_breaks=True)
         jollity.add_nbsp(nb, before=r'Part|Unit|[Cc]ell')
         jollity.add_nbsp(nb, after=r'kg|m') # done separately for testing

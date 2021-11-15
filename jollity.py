@@ -110,13 +110,17 @@ def split_md(nb: NotebookNode, line_comments:list, block_comments:list) -> None:
         close('text')
     nb.cells = cells
 
+def _is_kind(cell, kinds:str) -> bool:
+    """Internal function: Check if cell is of one of the given kinds."""
+    return kinds == 'all' or cell.cell_type in kinds or (
+        cell.cell_type[0] == 'm' and f'md:{cell.metadata.jollity.kind}' in kinds
+        )
+
 def _cells(nb, kinds:str) -> list:
     """Internal function: return all cells of the given kinds."""
-    if kinds == 'all':
+    if kinds == 'all':      # efficiently handle the special case
         return nb.cells
-    return [c for c in nb.cells if c.cell_type in kinds or
-            (c.cell_type[0] == 'm' and f'md:{c.metadata.jollity.kind}' in kinds)
-    ]
+    return [cell for cell in nb.cells if _is_kind(cell, kinds)]
 
 def _replace(what:str, nb, kinds, replacements):
     """Internal auxiliary function."""
@@ -149,6 +153,10 @@ def replace_char(nb, kinds:str, replacements) -> None:
 def replace_re(nb, kinds:str, replacements) -> None:
     """Replace regular expressions in all cells of the given kinds."""
     _replace('R', nb, kinds, replacements)
+
+def remove_empty(nb, kinds:str) -> None:
+    """Remove all empty cells of the given kinds."""
+    nb.cells = [c for c in nb.cells if c.source or not _is_kind(c, kinds)]
 
 def add_nbsp(nb, before:str='', after:str='') -> None:
     """Replace spaces between numbers and words with a non-breaking space."""
