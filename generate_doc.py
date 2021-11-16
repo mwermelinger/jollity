@@ -18,6 +18,10 @@ def generate_nb(source: str, target: str):
         # ANSWER and NOTE comments, and remaining text
         jollity.split_md(nb, ['answer'], ['note'])
 
+        jollity.check_levels(nb)
+        jollity.check_breaks(nb, 'md:text md:note')
+        jollity.check_lengths(nb, 'md:text', 80)
+
         # remove HTML comments from text cells
         jollity.replace_re(nb, 'md:text', (jollity.COMMENT, ''))
 
@@ -43,35 +47,39 @@ def generate_nb(source: str, target: str):
         jollity.remove_empty(nb, 'all')
 
         # Jupyter doesn't render italics within underscores in some contexts
-        jollity.replace_re(nb, 'markdown',
+        jollity.replace_re(nb, 'md:text md:head md:note',
             # replace _text_ with *text* within []
             (r'\[_([A-Za-z0-9 ]+)_\]', r'[*\1*]')
         )
 
-        # this call corresponds to the non-breaking space example in the text
-        # it would also replace spaces in 'fact 5', 'pact 0', '2 heroes', etc.
-        # uncomment it to test
+        # add non-breaking spaces as in the user manual's example
+        # this also replaces spaces in 'fact 5', 'pact 0', '2 heroes', etc.
         BEFORE = r'act'
         AFTER = r'h'
         jollity.replace_re(nb, 'md:text', [
+            # uncomment next two lines to test
             # (fr'(?i)({BEFORE}) +(\d)', r'\1&nbsp;\2'), # (?i) ignores the case
             # (fr'(?i)(\d) +({AFTER})',  r'\1&nbsp;\2'),
         ])
-
-        jollity.spaces(nb, fix_breaks=True)
-        jollity.expand_urls(nb, {
+        jollity.expand_urls(nb, 'md:text', {
             'jupytext': 'https://jupytext.readthedocs.io',
             'pandoc': 'https://pandoc.org',
             'nbconvert': 'https://nbconvert.readthedocs.io',
             'nbsphinx': 'https://nbsphinx.readthedocs.io',
             'jubook': 'https://jupyterbook.org',
         })
+        jollity.check_urls(nb, 'md:text')
+
         jollity.replace_char(nb, 'md:text', ('Ø', 'O'))
         jollity.replace_str(nb, 'all', jollity.POWERS)
         jollity.replace_str(nb, 'markdown', [
             ('1/4', '¼'), ('=>', '⇒'), ('e.g.', 'for example')
         ])
         jollity.set_cells(nb, 'markdown', edit=True, delete=False)
+
+
+        # make line breaks explicit
+        jollity.replace_re(nb, 'md:text', (r' {2,}\n', r'\\\n'))
 
         # Replace extension .md with .ipynb and write the file
         path, _ = os.path.splitext(target)

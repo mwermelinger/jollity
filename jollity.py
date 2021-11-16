@@ -6,6 +6,7 @@ import math
 import nbformat
 import nbformat.v4 as nb4
 import re
+import urllib.request
 
 # maps for function `replace_text`
 POWERS = list({
@@ -49,7 +50,6 @@ def split_md(nb: NotebookNode, line_comments:list, block_comments:list) -> None:
         lines = []
         fence = ''      # the opening fence of the current fenced block
         comment = None
-        previous_level = math.inf
         for line in old_cell.source.split('\n'):
             if comment == 'normal':
                 if match := COMMENT_END.match(line):
@@ -96,13 +96,10 @@ def split_md(nb: NotebookNode, line_comments:list, block_comments:list) -> None:
                 close('text')
                 lines = [line]
                 this_level = len(match.group(1))
-                if this_level - previous_level > 1:
-                    warning(f'Skipped heading level:{line}')
                 close('head', {
                     'level': this_level,
                     'heading': match.group(2),
                 })
-                previous_level = this_level
                 lines = []
             else:
                 lines.append(line)
@@ -127,6 +124,7 @@ def _replace(what:str, nb, kinds, replacements):
     if isinstance(replacements, tuple):
         replacements = [replacements]
     cells = _cells(nb, kinds)
+    # do one replacement at a time on all cells to benefit from regexp caching
     for old, new in replacements:
         if what == 'C':
             if len(old) != len(new):
@@ -158,17 +156,42 @@ def remove_empty(nb, kinds:str) -> None:
     """Remove all empty cells of the given kinds."""
     nb.cells = [c for c in nb.cells if c.source or not _is_kind(c, kinds)]
 
-def spaces(nb: NotebookNode, fix_breaks:bool) -> None:
-    """Handle spaces in cells."""
-    for cell in nb.cells:
-        if cell.cell_type == 'markdown' and '  \n' in cell.source:
-            for line in cell.source.split('\n'):
-                if line.endswith('  '):
-                    warning(f'Invisible line break:{line}')
-            if fix_breaks:
-                cell.source = re.sub(r'  +\n', r'\\\n', cell.source)
+def check_breaks(nb, kinds:str):
+    """Check for invisible line breaks."""
+    for cell in _cells(nb, kinds):
+        for line in cell.source.split('\n'):
+            if line.endswith('  '):
+                warning(f'Invisible line break:{line}')
 
-def expand_urls(nb, url:dict) -> None:
+def check_levels(nb):
+    """Check headings levels."""
+    previous_level = math.inf
+    for cell in _cells(nb, 'md:head'):
+        this_level = cell.metadata.jollity.level
+        if this_level - previous_level > 1:
+            warning(f'Skipped heading level:{cell.source}')
+        previous_level = this_level
+
+def check_lengths(nb, kinds:str, length:int):
+    """Check for long lines."""
+    for cell in _cells(nb, kinds):
+        for line in cell.source.split('\n'):
+            if len(line) > length:
+                    warning(f'Long line:{line}')
+
+def check_urls(nb, kinds:str):
+    """Check for broken URLs starting with http."""
+    checked = set()     # check each distinct url once
+    for cell in _cells(nb, kinds):
+        for match in re.findall(r'\]\((http.+?)\)', cell.source):
+            if not match in checked:
+                checked.add(match)
+                try:
+                    urllib.request.urlopen(match)
+                except:
+                    error(f'Cannot open URL:{match}')
+
+def expand_urls(nb, kinds:str, url:dict):
     """Replace labels with URLs in Markdown links."""
     def get_url(match) -> str:
         label = match.group(1)
@@ -179,8 +202,8 @@ def expand_urls(nb, url:dict) -> None:
             return match.group(0)   # don't change link
 
     # match ](...) but not ](http...)
-    URL = re.compile(r'\]\((?!http)([^\)]+)\)')
-    for cell in nb.cells:
+    URL = re.compile(r'\]\((?!http)(.+?)\)')
+    for cell in _cells(nb, kinds):
         if cell.cell_type == 'markdown':
             cell.source = URL.sub(get_url, cell.source)
 

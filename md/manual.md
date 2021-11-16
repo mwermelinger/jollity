@@ -1,5 +1,5 @@
 # Jollity User Manual
-<!-- To test spaces(), make sure the editor doesn't remove trailing spaces. -->
+<!-- Save this file WITH trailing spaces to test check_breaks() -->
 
 Jollity is a small library of functions that process Jupyter notebooks.
 They can:
@@ -97,8 +97,8 @@ a Markdown cell with text
 <!-- ANSWER -->
 in the deployed notebooks, but nothing in the PDF and HTML versions.
 
-You can also have block comments: they start and end with the same
-one-line comment. For example, with Jollity you can replace
+You can also have block comments: they start and end with the same one-line comment.
+For example, with Jollity you can replace
 ```
 <!-- NOTE -->
 Jollity only processes ATX headings, not Setext headings.
@@ -151,14 +151,35 @@ Jollity can remove them before you deliver the notebooks to your audience. -->
   indented by two spaces
   --><!-- This comment is kept. -->
 
-<!-- ```
-WARNING:Skipped heading level:...
-```
-This message indicates that header `...` is more than one level below
-the previous header, e.g. you went from a level 1 to a level 3 header
-without any level-2 header in between.
 
-#### Warning: level-4 heading -->
+## Check notebook
+The following functions don't modify a notebook: they only log potential issues.
+Most functions take as argument the kinds of cells to be analysed.
+```py
+check_breaks(nb, kinds:str):
+```
+This function reports all lines ending in two or more spaces:
+they represent a line break in Markdown.
+Usually this function is called with `kinds='md:text'`.
+```py
+check_levels(nb):
+```
+This reports any heading that is more than one level below its previous heading.
+```py
+check_lengths(nb, kinds:str, length:int):
+```
+This reports any line longer than the given length.
+Usually this function is called on `code` and `md:fence` cells, as other lines
+simply wrap around at the window edge.
+```py
+check_urls(nb, kinds:str):
+```
+This reports any links of the form `](http...)` that can't be opened,
+e.g. because they raise a 404 error.
+
+#### Test checks
+This heading (level 4) comes after a level 2 heading, and this sentence   
+has an invisible line break, so the log has two messages.
 
 ## Remove empty cells
 ```py
@@ -173,20 +194,21 @@ like links to the current year's course webpage, Jollity allows you to define
 a dictionary of labels to URLs and use the labels in Markdown links.
 Having all URLs in one place makes it easier to update them.
 ```py
-expand_urls(nb, url:dict)
+expand_urls(nb, kinds:str, url:dict)
 ```
-This function goes through all Markdown cells of notebook `nb` and,
-for each link `[text](label)` where `label` doesn't start with 'http',
+This function goes through the cells of the given kinds and,
+for each link `...](label)` where `label` doesn't start with 'http',
 replaces `label` with `URL` if
 the pair `label:URL` occurs in the `url` dictionary.
-For example, `expand_urls(nb, {'ou':'https://open.ac.uk'})` replaces
-`[Øpen University](ou)` with `[Øpen University](https://open.ac.uk)`.
+For example, `expand_urls(nb, {'ou':'https://www.open.ac.uk'})` replaces
+`[Øpen University](ou)` with `[Øpen University](https://www.open.ac.uk)`.
+
 ```
 WARNING:Unknown link label:...
 ```
 This message indicates that `...` occurs in a link but not in the dictionary.
-The example above generates this message because `ou` is not in the dictionary
-created by `generate_doc.py`.
+The paragraph above generates two messages because neither `ou` nor `label`
+are in the dictionary created by `generate_doc.py`.
 
 ## Replace text
 Jollity provides three functions to replace text.
@@ -254,11 +276,13 @@ With this function you can, among other things:
 
 - Remove all leading or all trailing whitespace from cells.
 - Replace consecutive blank lines with a single one.
-- Insert text at the beginning or end of a cell.
+- Insert text at the beginning or end of every cell of a certain kind.
 - Replace spaces between certain words and digits with a non-breaking space,
   e.g. turn `Act  1 lasts 2 h` into `Act&nbsp;1 lasts 2&nbsp;h`.
 - Replace `_text_` with `*text*` in some contexts, to make Jupyter render
   italics correctly, e.g. [_within square brackets_].
+- Make invisible line breaks (two or more spaces at the end of a line)
+  visible (with a backslash).
 
 If you don't know how to write
 [regular expressions](https://docs.python.org/3/library/re.html) in Python,
@@ -305,18 +329,3 @@ deleted but leaves their editable status unchanged. The call
 `set_cells(nb, 'code raw', edit=True, delete=False)` makes all
 code and raw cells editable but not deletable.
 The status of Markdown cells is not modified.
-
-## Spaces
-In Markdown, two or more spaces at the end of a line represent a line break.
-It's better to use a backslash as the explicit line break marker.
-Jollity can report invisible line breaks and replace them with visible ones.
-```py
-spaces(nb, fix_breaks:bool)
-```
-This function reports invisible line breaks in Markdown cells and,
-if `fix_breaks` is true, replaces them with a backslash,
-like for this sentence.
-```
-WARNING:Invisible line break:...
-```
-This message indicates that line `...` has two or more spaces at the end.
