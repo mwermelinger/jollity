@@ -41,6 +41,7 @@ and regenerates the notebooks in folder `doc`.
 The script uses [Jupytext](https://jupytext.readthedocs.io) to convert
 a Markdown file to a Jupyter notebook.
 
+## Logging
 The Jollity functions log any warnings and errors as they process notebooks.
 By default, the warning and error messages are printed on the screen,
 but you can collect them in a file.
@@ -51,7 +52,7 @@ e.g. `python generate_doc.py 2> log.txt`.
 This will overwrite the log file every time you run your script.
 
 Alternatively, add the following to your script:
-```py
+```python
 import logging
 
 logging.basicConfig(filename='log.txt')
@@ -59,7 +60,7 @@ logging.basicConfig(filename='log.txt')
 This will append the messages to the file, if it exists.
 In this way you can preserve the log of previous runs of your script.
 If you want the log file to start afresh every time you run the script, write
-```py
+```python
 logging.basicConfig(filename='log.txt', filemode='w')
 ```
 
@@ -156,28 +157,29 @@ Jollity can remove them before you deliver the notebooks to your audience. -->
 The following functions don't modify a notebook: they only log potential issues.
 Most functions take as argument the kinds of cells to be analysed.
 ```py
-check_breaks(nb, kinds:str):
+check_breaks(nb, kinds:str)
 ```
 This function reports all lines ending in two or more spaces:
 they represent a line break in Markdown.
 Usually this function is called with `kinds='md:text'`.
 ```py
-check_levels(nb):
+check_levels(nb)
 ```
 This reports any heading that is more than one level below its previous heading.
 ```py
-check_lengths(nb, kinds:str, length:int):
+check_lengths(nb, kinds:str, length:int)
 ```
 This reports any line longer than the given length.
 Usually this function is called on `code` and `md:fence` cells, as other lines
 simply wrap around at the window edge.
 ```py
-check_urls(nb, kinds:str):
+check_urls(nb, kinds:str)
 ```
 This reports any links of the form `](http...)` that can't be opened,
 e.g. because they raise a 404 error.
 
 #### Test checks
+<!-- Must keep 3 spaces at end of next line! -->
 This heading (level 4) comes after a level 2 heading, and this sentence   
 has an invisible line break, so the log has two messages.
 
@@ -329,3 +331,14 @@ deleted but leaves their editable status unchanged. The call
 `set_cells(nb, 'code raw', edit=True, delete=False)` makes all
 code and raw cells editable but not deletable.
 The status of Markdown cells is not modified.
+
+## Extract code
+The Jupyter interface allows us to save a notebook as a code file, but it will
+also include all the text, as comments.
+```py
+extract_code(nb, headings:bool=True) -> str
+```
+This function returns a string will all the code cells and, if the second
+argument is true, all the headings, to put the code cells in context.
+This function assumes the code is in Python, R or some other language where
+comment lines start with `#`.

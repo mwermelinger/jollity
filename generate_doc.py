@@ -34,6 +34,9 @@ def generate_nb(source: str, target: str):
             (r'\s+$', ''),          # remove trailing white space
         ])
 
+        # make line breaks explicit
+        jollity.replace_re(nb, 'md:text', (r' {2,}\n', r'\\\n'))
+
         # add HTML at start/end of a note to make the coloured box
         jollity.replace_re(nb, 'md:note', [
             (r'^(.)', r'<div class="alert alert-warning">\n\1'),
@@ -77,13 +80,12 @@ def generate_nb(source: str, target: str):
         ])
         jollity.set_cells(nb, 'markdown', edit=True, delete=False)
 
-
-        # make line breaks explicit
-        jollity.replace_re(nb, 'md:text', (r' {2,}\n', r'\\\n'))
-
         # Replace extension .md with .ipynb and write the file
         path, _ = os.path.splitext(target)
         jupytext.write(nb, path + '.ipynb')
+        # write code to separate file
+        with open(path + '.py', 'w') as f:
+            f.write(jollity.extract_code(nb))
 
 logging.basicConfig(
     format='%(levelname)s:%(message)s',

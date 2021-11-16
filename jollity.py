@@ -217,3 +217,15 @@ def set_cells(nb, types:str='all', edit=None, delete=None) -> None:
                 cell.metadata.editable = edit
             if delete is not None:
                 cell.metadata.deletable = delete
+
+def extract_code(nb, headings:bool=True) -> str:
+    """Return the content of code cells and optionally the headings too."""
+    lines = []
+    counter = 1
+    for cell in nb.cells:
+        if headings and _is_kind(cell, 'md:head'):
+            lines.append(cell.source)
+        elif cell.cell_type == 'code':
+            lines.extend([f'# In[{counter}]:\n', cell.source, ''])
+            counter += 1
+    return '\n'.join(lines)
