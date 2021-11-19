@@ -152,6 +152,28 @@ Jollity can remove them before you deliver the notebooks to your audience. -->
   indented by two spaces
   --><!-- This comment is kept. -->
 
+## Header / Footer
+The next two functions add boilerplate text at the start or end of a notebook,
+like a copyright notice or
+'The latest version of this notebook is [here](some url)'.
+```py
+prepend(nb, text:str, kind:str='')
+```
+If `kind` is omitted, this function inserts text at the start of the first
+cell in the notebook, whether it's a raw, code or Markdown cell.
+The text is inserted as-is, i.e. you must include any separator (e.g. a newline)
+from the existing text, if you need to.
+
+If kind is given, a new cell of that kind, with the given text,
+is inserted at the start of the notebook.
+If `kind='md:head'`, the function checks the text is a valid heading.
+No checks are done for other Markdown kinds.
+
+```py
+append(nb, text:str, kind:str='')
+```
+This function works like `prepend` but inserts the text at the end of
+the last cell or creates a new last cell with the text.
 
 ## Check notebook
 The following functions don't modify a notebook: they only log potential issues.
@@ -183,16 +205,9 @@ e.g. because they raise a 404 error.
 This heading (level 4) comes after a level 2 heading, and this sentence   
 has an invisible line break, so the log has two messages.
 
-## Remove empty cells
-```py
-remove_empty(nb, kinds:str)
-```
-This function removes all empty cells of the given kinds.
-A cell with blank lines is _not_ considered empty.
-
 ## Expand URLs
-If you use some URLs repeatedly or URLs that change regularly,
-like links to the current year's course webpage, Jollity allows you to define
+If you use some URLs repeatedly or URLs that change every year,
+like a link to the course webpage, Jollity allows you to define
 a dictionary of labels to URLs and use the labels in Markdown links.
 Having all URLs in one place makes it easier to update them.
 ```py
@@ -205,12 +220,12 @@ the pair `label:URL` occurs in the `url` dictionary.
 For example, `expand_urls(nb, {'ou':'https://www.open.ac.uk'})` replaces
 `[Øpen University](ou)` with `[Øpen University](https://www.open.ac.uk)`.
 
-```
+<!-- ```
 WARNING:Unknown link label:...
 ```
 This message indicates that `...` occurs in a link but not in the dictionary.
 The paragraph above generates two messages because neither `ou` nor `label`
-are in the dictionary created by `generate_doc.py`.
+are in the dictionary created by `generate_doc.py`. -->
 
 ## Replace text
 Jollity provides three functions to replace text.
@@ -338,7 +353,30 @@ also include all the text, as comments.
 ```py
 extract_code(nb, headings:bool=True) -> str
 ```
-This function returns a string will all the code cells and, if the second
-argument is true, all the headings, to put the code cells in context.
-This function assumes the code is in Python, R or some other language where
+This function returns a string will all the code cells content and,
+if the second argument is true, all the headings, to put the code in context.
+If the notebook has no code cells, the returned string is empty.
+This function assumes the code is in Python, R or another language where
 comment lines start with `#`.
+
+## Cleanup
+These functions cleanup the notebook.
+The `replace_re` function can also be used for that purpose, e.g. to
+remove blank lines.
+```py
+remove_cells(nb, kinds:str, text:str)
+```
+This function removes all cells of the given kinds that include text matching
+the regular expression `text`. Examples:
+
+- `remove_cells(nb, 'md:fence', '')` removes all fenced blocks, because any text includes the empty string
+- `remove_cells(nb, 'all', r'^$)` removes all empty cells.
+
+```py
+remove_metadata(nb, kinds:str)
+```
+This function removes all Jollity metadata from the cells of the given kinds.
+This loses information about the different kinds of Markdown cells.
+For example, after calling this function with `kinds='md:head'`,
+any other function called with the same `kinds` won't do anything because 
+Jollity won't distinguish heading cells from other Markdown cells anymore.

@@ -24,9 +24,10 @@ FRACTIONS = list({
 # .*? is a non-greedy match so that it stops at the first -->
 COMMENT = r'(?ms)^ {0,3}<!--.*?-->'
 
+ATX = re.compile(r' {0,3}(#{1,6}) +(.+?)[ #]*$')
+
 def split_md(nb: NotebookNode, line_comments:list, block_comments:list) -> None:
     """Split markdown cells in headings, text, fenced blocks. Remove comments."""
-    ATX = re.compile(r' {0,3}(#{1,6}) +(.+?)[ #]*$')
     FENCE = re.compile(r' {0,3}(`{3,}|~{3,})')
     COMMENT_START = re.compile(r' {0,3}<!--')
     # find first --> in line with non-greedy match .*?
@@ -95,9 +96,8 @@ def split_md(nb: NotebookNode, line_comments:list, block_comments:list) -> None:
             elif match := ATX.match(line):
                 close('text')
                 lines = [line]
-                this_level = len(match.group(1))
                 close('head', {
-                    'level': this_level,
+                    'level': len(match.group(1)),
                     'heading': match.group(2),
                 })
                 lines = []
@@ -109,9 +109,11 @@ def split_md(nb: NotebookNode, line_comments:list, block_comments:list) -> None:
 
 def _is_kind(cell, kinds:str) -> bool:
     """Internal function: Check if cell is of one of the given kinds."""
-    return kinds == 'all' or cell.cell_type in kinds or (
-        cell.cell_type[0] == 'm' and f'md:{cell.metadata.jollity.kind}' in kinds
-        )
+    if kinds == 'all' or cell.cell_type in kinds:
+        return True
+    if 'jollity' in cell.metadata:
+        return f'md:{cell.metadata.jollity.kind}' in kinds
+    return False
 
 def _cells(nb, kinds:str) -> list:
     """Internal function: return all cells of the given kinds."""
@@ -151,10 +153,6 @@ def replace_char(nb, kinds:str, replacements) -> None:
 def replace_re(nb, kinds:str, replacements) -> None:
     """Replace regular expressions in all cells of the given kinds."""
     _replace('R', nb, kinds, replacements)
-
-def remove_empty(nb, kinds:str) -> None:
-    """Remove all empty cells of the given kinds."""
-    nb.cells = [c for c in nb.cells if c.source or not _is_kind(c, kinds)]
 
 def check_breaks(nb, kinds:str):
     """Check for invisible line breaks."""
@@ -198,7 +196,7 @@ def expand_urls(nb, kinds:str, url:dict):
         if label in url:
             return '](' + url[label] + ')'
         else:
-            warning(f'Unknown link label:{label}')
+            # warning(f'Unknown link label:{label}')
             return match.group(0)   # don't change link
 
     # match ](...) but not ](http...)
@@ -224,8 +222,92 @@ def extract_code(nb, headings:bool=True) -> str:
     counter = 1
     for cell in nb.cells:
         if headings and _is_kind(cell, 'md:head'):
-            lines.append(cell.source)
+            lines.extend([cell.source, ''])     # blank line after heading
         elif cell.cell_type == 'code':
-            lines.extend([f'# In[{counter}]:\n', cell.source, ''])
+            lines.extend([f'# CELL {counter}', '', cell.source, ''])
             counter += 1
-    return '\n'.join(lines)
+    return '\n'.join(lines) if counter > 1 else ''
+
+def merge_cells(nb, kinds:str):
+    """Merge consecutive cells that are of the given kinds.
+
+    The merged cell has the same type as the first cell but the metadata of the last one! Needs to be improved.
+    """
+    cells = []
+    merged = None
+    for cell in nb.cells:
+        if not _is_kind(cell, kinds):   # cell is not to be merged
+            if merged:
+                cells.append(merged)
+                merged = None
+            cells.append(cell)
+        elif not merged:                # cell starts new merger
+            merged = cell
+        else:                           # merge this cell to previous ones
+            merged.source += '\n' + cell.source
+            merged.metadata.update(cell.metadata)
+    if merged:
+        cells.append(merged)
+    nb.cells = cells
+
+def prepend(nb, text:str, kind:str=''):
+    """Add text as first cell or at start of the current first cell."""
+    if kind == '':
+        if nb.cells:
+            nb.cells[0].source = text + nb.cells[0].source
+        else:
+            error("Can't prepend: empty notebook")
+    elif kind == 'raw':
+        nb.cells.insert(0, nb4.new_raw_cell(text))
+    elif kind == 'code':
+        nb.cells.insert(0, nb4.new_code_cell(text))
+    elif kind == 'markdown' or kind.startswith('md:'):
+        cell = nb4.new_markdown_cell(text)
+        if match := re.match(r'md:(.*)', kind):
+            if match.group(1) == 'head':
+                if heading := re.match(ATX. text.strip()):
+                    cell.metadata.jollity = {
+                        'kind': 'head',
+                        'level': len(heading.group(1)),
+                        'heading': heading.group(2)
+                    }
+                else:
+                    error(f'Not a heading: {text}')
+        nb.cells.insert(0, cell)
+    else:
+        error(f'Unknown kind: {kind}')
+
+def append(nb, text:str, kind:str=''):
+    """Add text as last cell or at the end of the current last cell."""
+    if kind == '':
+        if nb.cells:
+            nb.cells[-1].source += text
+        else:
+            error("Can't append: empty notebook")
+    elif kind == 'raw':
+        nb.cells.append(nb4.new_raw_cell(text))
+    elif kind == 'code':
+        nb.cells.append(nb4.new_code_cell(text))
+    elif kind == 'markdown' or kind.startswith('md:'):
+        cell = nb4.new_markdown_cell(text)
+        if match := re.match(r'md:(.*)', kind):
+            if match.group(1) == 'head':
+                if heading := re.match(ATX. text.strip()):
+                    cell.metadata.jollity = {
+                        'kind': 'head',
+                        'level': len(heading.group(1)),
+                        'heading': heading.group(2)
+                    }
+                else:
+                    error(f'Not a heading: {text}')
+        nb.cells.append(cell)
+    else:
+        error(f'Unknown kind: {kind}')
+
+def remove_metadata(nb, kinds:str):
+    for cell in _cells(nb, kinds):
+        cell.metadata.pop('jollity', '')
+
+def remove_cells(nb, kinds:str, text:str):
+    nb.cells = [cell for cell in nb.cells if not
+        (_is_kind(cell, kinds) and re.search(text, cell.source))]

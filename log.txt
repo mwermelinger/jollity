@@ -1,6 +1,5 @@
 WARNING:Skipped heading level:#### Test checks
-WARNING:Invisible line break:This heading (level 4) comes after a level 2 heading, and this sentence   
 WARNING:Long line:You can also have block comments: they start and end with the same one-line comment.
-WARNING:Unknown link label:label
-WARNING:Unknown link label:ou
+WARNING:Long line:- `remove_cells(nb, 'md:fence', '')` removes all fenced blocks, because any text includes the empty string
+WARNING:Invisible line break:This heading (level 4) comes after a level 2 heading, and this sentence   
 ERROR:Cannot open URL:http...

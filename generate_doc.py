@@ -19,7 +19,6 @@ def generate_nb(source: str, target: str):
         jollity.split_md(nb, ['answer'], ['note'])
 
         jollity.check_levels(nb)
-        jollity.check_breaks(nb, 'md:text md:note')
         jollity.check_lengths(nb, 'md:text', 80)
 
         # remove HTML comments from text cells
@@ -34,8 +33,9 @@ def generate_nb(source: str, target: str):
             (r'\s+$', ''),          # remove trailing white space
         ])
 
-        # make line breaks explicit
-        jollity.replace_re(nb, 'md:text', (r' {2,}\n', r'\\\n'))
+        # report invisible line breaks and make them explicit
+        jollity.check_breaks(nb, 'md:text md:note')
+        jollity.replace_re(nb, 'md:text md:note', (r' {2,}\n', r'\\\n'))
 
         # add HTML at start/end of a note to make the coloured box
         jollity.replace_re(nb, 'md:note', [
@@ -45,9 +45,6 @@ def generate_nb(source: str, target: str):
 
         # insert text in empty answer cells
         jollity.replace_re(nb, 'md:answer', ('', '_Write your answer here._'))
-
-        # remove any remaining empty cells
-        jollity.remove_empty(nb, 'all')
 
         # Jupyter doesn't render italics within underscores in some contexts
         jollity.replace_re(nb, 'md:text md:head md:note',
@@ -64,6 +61,8 @@ def generate_nb(source: str, target: str):
             # (fr'(?i)({BEFORE}) +(\d)', r'\1&nbsp;\2'), # (?i) ignores the case
             # (fr'(?i)(\d) +({AFTER})',  r'\1&nbsp;\2'),
         ])
+
+        # expand abbreviated URLs and then check all of them
         jollity.expand_urls(nb, 'md:text', {
             'jupytext': 'https://jupytext.readthedocs.io',
             'pandoc': 'https://pandoc.org',
@@ -78,6 +77,10 @@ def generate_nb(source: str, target: str):
         jollity.replace_str(nb, 'markdown', [
             ('1/4', '¼'), ('=>', '⇒'), ('e.g.', 'for example')
         ])
+
+        # remove cells without text
+        jollity.remove_cells(nb, 'all', r'^\s*$')
+        # prevent deletion of all Markdown cells
         jollity.set_cells(nb, 'markdown', edit=True, delete=False)
 
         # Replace extension .md with .ipynb and write the file
@@ -86,6 +89,9 @@ def generate_nb(source: str, target: str):
         # write code to separate file
         with open(path + '.py', 'w') as f:
             f.write(jollity.extract_code(nb))
+
+        # remove any traces of Jollity's work
+        jollity.remove_metadata(nb, 'all')
 
 logging.basicConfig(
     format='%(levelname)s:%(message)s',
