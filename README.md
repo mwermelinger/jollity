@@ -36,6 +36,7 @@ Jollity is still a work in progress.
 <!-- NOTE -->
 ```
 and use Jollity to produce
+
 <div class="alert alert-warning">
 <strong>Note:</strong> Jollity is still a work in progress.
 </div>
@@ -52,6 +53,7 @@ def reverse_sequence(items: list) -> list:
 and use Jollity to remove all lines from `# skip` to `# /skip`
 from the published notebook.
 
+## Documentation
 For more details on how to use Jollity and what it can do, see the
 [manual](doc/manual.ipynb).
 
@@ -61,6 +63,7 @@ For more on the role of automation in publishing notebooks, see
 [the guide](https://opencomputinglab.github.io/educational-jupyter-notebook-qa-automation)
 by my colleague Tony Hirst.
 
+## License
 <p xmlns:cc="http://creativecommons.org/ns#"
 xmlns:dct="http://purl.org/dc/terms/">
 <span property="dct:title">The text in this repository</span> is copyright

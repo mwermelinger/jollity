@@ -5,7 +5,7 @@ WARNING Invisible line break: This heading (level 4) comes after a level 2 headi
 ERROR Can't open URL: http://....
 ERROR Can't open URL: http...
 WARNING Skipped heading level: #### Test checks
-WARNING Long line: The best-case complexity is ø(1) and the worst-case complexity is ø(2ⁿ).
+WARNING Long line: The best-case complexity is ø(1) and the worst-case complexity is ø(2^n).
 WARNING Long line:     notebook = nbformat.read(file, 4)   # 4 is the notebook format version
 WARNING Long line:     if 'introduction' in file:          # pre-process chapter introductions
 WARNING Long line:     jollity.another_function(notebook)  # same processing for all notebooks

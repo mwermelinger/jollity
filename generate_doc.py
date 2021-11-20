@@ -72,7 +72,7 @@ def generate_nb(source: str, target: str):
         check_urls(nb, 'md:text')
 
         replace_char(nb, 'md:text', ('Ø', 'O'))
-        replace_str(nb, 'all', POWERS)
+        replace_str(nb, 'md:text', POWERS)
         replace_str(nb, 'markdown', [
             ('1/4', '¼'), ('=>', '⇒'), ('e.g.', 'for example')
         ])
