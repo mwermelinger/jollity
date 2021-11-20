@@ -1,19 +1,104 @@
-# Jollity User Manual
-<!-- Save this file WITH trailing spaces to test check_breaks() -->
-
-Jollity is a small library of functions that process Jupyter notebooks.
-They can:
-
-- Remove HTML comments from Markdown cells.
-- Prevent cells from being deleted or edited.
-- Replace a mnemonic label with an URL.
-
+# Jollity Manual
+Jollity is a small library of Python functions that process Jupyter notebooks.
 Jollity does _not_ convert notebooks from/to other formats,
 like Markdown, PDF and HTML.
 There are plenty of tools for that, including [pandoc](pandoc),
 [nbconvert](nbconvert), [Jupytext](jupytext),
 [nbsphinx](nbsphinx) and [Jupyter Book](jubook).
 
+## Example
+Let's first see an example of how Jollity is used in practice.
+
+I'm authoring in Markdown a textbook for M269,
+the algorithms and data structures module at The Open University, UK.
+I wrote a Python script that:
+
+1. processes the Markdown files
+2. converts the Markdown files to Jupyter notebooks
+3. processes the notebooks
+4. executes the notebooks with nbconvert
+5. converts the notebooks to PDF and HTML with nbsphinx
+6. processes the notebooks
+7. zips all files into an archive for uploading to the M269 website.
+
+Markdown cells at the end of stage 2 may look like this:
+```
+The best-case complexity is ø(1) and the worst-case complexity is ø(2^n).
+<!-- INFO -->
+Exponential functions were introduced in [MU123](mu123).
+<!-- INFO -->
+
+**Exercise:** Explain why the worst-case is exponential.
+<!-- ANSWER -->
+<!-- NOTE -->
+In practice the worst-case may only occur very rarely.
+<!-- NOTE -->
+
+**Exercise**: Edit the next cell to complete the sentence.
+<!-- EDIT -->
+The average-case complexity is ...
+<!-- EDIT -->
+```
+This example shows the four kinds of special comments used in M269.
+(You can define your own.)
+
+- The `ANSWER` comment becomes a separate Markdown cell with text
+  '_Write your answer here._' in the final notebook that goes to students,
+  but nothing appears in the PDF or HTML.
+- The `INFO` and `NOTE` comments are replaced with HTML code that puts the text
+  in a coloured box (different colours for info and note boxes).
+- The text within `EDIT` comments is put in a separate Markdown cell, so that
+  students don't edit by mistake all other surrounding text.
+
+The example also shows the use of special characters or character combinations
+to make typing the text faster. The script uses Jollity to replace all
+occurrences of ø with Θ and of ^ followed by n with ^n.
+The ø letter is quick to type on my keyboard (Alt-o), but there's no
+shortcut for uppercase theta.
+
+The script also replaces occurrences of `mu123` within a link
+with the corresponding URL. Keeping a mapping of abbreviations to URLs
+avoids repeatedly writing and updating the same URL in several notebooks.
+
+Code cells often include `%timeit` commands to measure the run-time of code.
+This slows down the execution of the code cells in stage 4, so the script
+can be run in a 'draft' mode that comments out the `%timeit` commands  
+before the notebooks are executed.
+
+Stage 3 uses Jollity to:
+
+- Put the four special comments into their own Markdown cells.
+- Add HTML code at the start and end of the info and note cells
+  to generate the boxes.
+- Strip spaces and newlines from the start and end of each cell.
+- Do text replacements to obtain special characters like superscripts.
+- Replace `_text_` with `*text*` in certain contexts to avoid a Jupyter bug when
+  rendering italicised text.
+- Replace one or more spaces between certain words and digits with a single
+  non-breaking space, e.g. `step 1.2 takes 45 µs` becomes `step&nbsp;1.2 takes 45&nbsp;µs`.
+- Expand abbreviated URLs and check all URLs lead to existing pages.
+- Comment out all timing lines in code cells, if in draft mode.
+- Report code lines longer than 69 characters: they wrap around in the PDF.
+- Report invisible line breaks in Markdown.
+- Report when a heading level is skipped.
+- Remove all code between `# skip` and `# \skip`,
+  as illustrated in the [README](../README.md).
+- If the notebook is the start of a chapter, add at the end a reminder to
+  check the M269 website for news and errata before working through the chapter.
+
+Stage 6 (after execution and conversion to PDF and HTML) uses Jollity to:
+
+- Convert the Markdown syntax within the info and note boxes to HTML.
+  Nbsphinx correctly converts the boxes' Markdown content to PDF and HTML, but
+  the Jupyter interface can't render Markdown within HTML.
+- Insert the boilerplate text in the empty `ANSWER` cells.
+- If a notebook has code, extract it to a separate file, with a copyright
+  notice before the code. Comment out all IPython commands with `%`.
+
+File `m269.py` has the code that calls Jollity to do all the above.
+The Jollity functions are explained below.
+
+## Using Jollity
 Jollity uses the `NotebookNode` class of the `nbformat` module to
 represent a notebook in memory.
 Each function takes an instance of that class and modifies it.
@@ -26,22 +111,25 @@ import nbformat
 # go through all notebooks in `folder` or a subfolder of it
 for file in glob.iglob('folder/**/*.ipynb', recursive=True):
     notebook = nbformat.read(file, 4)   # 4 is the notebook format version
-    jollity.one_function(notebook)
-    jollity.another_function(notebook)
+    if 'introduction' in file:          # pre-process chapter introductions
+        jollity.one_function(notebook)
+    jollity.another_function(notebook)  # same processing for all notebooks
     nbformat.write(notebook, file)      # overwrites the original file
 ```
-If you wish to preserve the original,
-write the processed notebook to a different file or folder.
+In most authoring workflows you will wish to preserve the original
+and write the processed notebook to a different file or folder.
 
-<!-- To do: Explain how to process different notebooks differently -->
-
-For an example of how to use Jollity, see script `generate_doc.py`.
-It reads the source Markdown files of this manual in folder `md`
-and regenerates the notebooks in folder `doc`.
+For an alternative way of going through files in a folder,
+see script `generate_doc.py`.
+It reads the source Markdown file of this manual in folder `md`
+and writes the notebook to folder `doc`.
 The script uses [Jupytext](https://jupytext.readthedocs.io) to convert
 a Markdown file to a Jupyter notebook.
+<!-- NOTE -->
+Jollity requires Python 3.8 or later.
+<!-- NOTE -->
 
-## Logging
+### Logging
 The Jollity functions log any warnings and errors as they process notebooks.
 By default, the warning and error messages are printed on the screen,
 but you can collect them in a file.
@@ -65,7 +153,7 @@ logging.basicConfig(filename='log.txt', filemode='w')
 ```
 
 ## Markdown
-Jollity doesn't include a full Markdown parser. It only assumes the following.
+Jollity doesn't include a full Markdown parser. It only assumes the following:
 
 - An HTML comment starts in a line beginning with 0–3 spaces followed by `<!--`.
 - An HTML comment ends at the first occurrence of `-->`.
@@ -79,26 +167,25 @@ Jollity doesn't include a full Markdown parser. It only assumes the following.
   heading text, optional spaces and hashes.
 - The end of a Markdown cell also ends any HTML comment or fenced block.
 
-## Split Markdown
-To facilitate processing, the first step is to split Markdown cells into
-smaller cells of particular kinds:
+### Cell kinds
+Jollity must first divide Markdown cells into particular kinds:
 headings, text, fenced blocks and special HTML comments.
 The kind of each cell is stored in the notebook. This allows processing steps
-to only handle some cells, e.g. only number the headings.
+to only handle some cells, e.g. check the levels of headings and
+ignore all other kinds of cells.
 
 An HTML comment is special if it consists of a single word indicated by you.
 The word is also used to record the kind of comment.
 Jollity does a case-insensitive matching when looking for special comments, e.g.
-the word `answer` will match comments `<!-- ANSWER -->`, `<!-- Answer -->`
-and others.
+the word `answer` will match comments `<!-- ANSWER -->`, `<!-- Answer -->`, etc.
 
 You will have to define functions that process special comments.
 For example, you can have a special comment `<!-- ANSWER -->` that leads to
 a Markdown cell with text
 <!-- ANSWER -->
-in the deployed notebooks, but nothing in the PDF and HTML versions.
+in the published notebooks, but nothing in the PDF and HTML versions.
 
-You can also have block comments: they start and end with the same one-line comment.
+You can have block comments that start and end with the same one-line comment.
 For example, with Jollity you can replace
 ```
 <!-- NOTE -->
@@ -109,34 +196,47 @@ with a coloured alert box:
 <!-- NOTE -->
 Jollity only processes ATX headings, not Setext headings.
 <!-- NOTE -->
+
+If you define `answer` as a single-line comment and `hint` as a block comment,
+then Jollity will split Markdown cell
+```
+## Exercise
+What can't Jollity do?
+<!-- Answer: convert formats -->
+<!-- ANSWER -->
+<!-- HINT -->
+Read again the start of this manual.
+<!-- HINT -->
+```
+into four Markdown cells:
+
+1. A cell of kind `md:head` with the heading (first line).
+2. A cell of kind `md:text` with the second and third lines.
+3. An empty cell of kind `md:answer`.
+4. A cell of kind `md:hint` with the sixth line.
+
+Fenced blocks are put in cells of kind `md:fence`.
+Fenced blocks are rendered verbatim so you may wish to not process them further.
+
+All Markdown cells are of kind `markdown`.
+The other kinds of cells are `code` and `raw`.
+
+Most of Jollity's functions have an argument to indicate which kinds of cells
+should be processed. If the argument is `all`, every cell is processed.
+
+The rest of this manual explains the available functions.
+
+## Setup
 ```py
 split_md(nb, line_comments:list, block_comments:list)
 ```
-This function must be called first. The arguments are lists of strings.
+This function is usually called first. The arguments are lists of strings.
 Every single-line or block comment consisting of one of those strings is
 replaced with a Markdown cell of the kind given by the string.
 For a single-line comment, the resulting cell is empty; for a block comment,
 the cell has the content between the start and end of the block.
 
-For example,
-the call `split_md(nb, ['answer'], ['hint'])` splits this Markdown text
-```
-## Question
-Question text.
-<!-- answer here -->
-<!-- ANSWER -->
-<!-- HINT -->
-Use the same method as in the previous exercise.
-<!-- HINT -->
-```
-into four cells:
-
-1. A cell of kind `head` with the heading.
-2. A cell of kind `text` with the second and third lines.
-3. An empty cell of kind `answer`.
-4. A cell of kind `hint` with the sixth line.
-
-Fenced blocks are put in cells of kind `fence`.
+The example above is obtained by calling `split_md(nb, ['answer'], ['hint'])`.
 
 <!-- When authoring, you may wish to keep notes, ideas, draft paragraphs,
 alternative exercise solutions, to-do reminders and similar kinds of text
@@ -155,11 +255,11 @@ Jollity can remove them before you deliver the notebooks to your audience. -->
 ## Header / Footer
 The next two functions add boilerplate text at the start or end of a notebook,
 like a copyright notice or
-'The latest version of this notebook is [here](some url)'.
+'The latest version of this notebook is [here](http://....)'.
 ```py
 prepend(nb, text:str, kind:str='')
 ```
-If `kind` is omitted, this function inserts text at the start of the first
+If `kind` is omitted, the function inserts text at the start of the first
 cell in the notebook, whether it's a raw, code or Markdown cell.
 The text is inserted as-is, i.e. you must include any separator (e.g. a newline)
 from the existing text, if you need to.
@@ -167,7 +267,8 @@ from the existing text, if you need to.
 If kind is given, a new cell of that kind, with the given text,
 is inserted at the start of the notebook.
 If `kind='md:head'`, the function checks the text is a valid heading.
-No checks are done for other Markdown kinds.
+No checks are done for other Markdown kinds. For example,
+if `kind='md:fence'`, the `text` must include the necessary backticks or tildes.
 
 ```py
 append(nb, text:str, kind:str='')
@@ -178,6 +279,7 @@ the last cell or creates a new last cell with the text.
 ## Check notebook
 The following functions don't modify a notebook: they only log potential issues.
 Most functions take as argument the kinds of cells to be analysed.
+You can indicate several kinds, separated by spaces.
 ```py
 check_breaks(nb, kinds:str)
 ```
@@ -192,8 +294,8 @@ This reports any heading that is more than one level below its previous heading.
 check_lengths(nb, kinds:str, length:int)
 ```
 This reports any line longer than the given length.
-Usually this function is called on `code` and `md:fence` cells, as other lines
-simply wrap around at the window edge.
+Usually this function is called with `kinds='code md:fence'`, as lines in
+other kinds of cells simply wrap around at the window edge.
 ```py
 check_urls(nb, kinds:str)
 ```
@@ -215,8 +317,7 @@ expand_urls(nb, kinds:str, url:dict)
 ```
 This function goes through the cells of the given kinds and,
 for each link `...](label)` where `label` doesn't start with 'http',
-replaces `label` with `URL` if
-the pair `label:URL` occurs in the `url` dictionary.
+replaces `label` with `URL` if `label:URL` occurs in the `url` dictionary.
 For example, `expand_urls(nb, {'ou':'https://www.open.ac.uk'})` replaces
 `[Øpen University](ou)` with `[Øpen University](https://www.open.ac.uk)`.
 
@@ -230,10 +331,6 @@ are in the dictionary created by `generate_doc.py`. -->
 ## Replace text
 Jollity provides three functions to replace text.
 They can be used for various purposes.
-
-Each function accepts a string with the kinds of cells to be processed:
-`all` for all cells; `code`, `raw` and `markdown` for all cells of that kind;
-`md:text`, `md:fence`, `md:head`, etc. for only certain kinds of Markdown cells.
 
 Each function takes a list of (old, new) string pairs, or a single pair.
 The function applies the replacements, in the order given,
@@ -252,14 +349,14 @@ the n-th character in old is replaced with the n-th character in new.
 If the strings differ in length, there's an error message
 and no replacement is done.
 
-For example, for my algorithms book I do
+For example,
 ```py
-replace_char(nb, 'markdown code', ('ø·', 'Θ×'))
+replace_char(nb, 'all', ('ø·', 'Θ×'))
 ```
-This replaces in all code and markdown cells ø (Alt-o on my keyboard) with
+replaces in all cells ø (Alt-o on my keyboard) with
 uppercase Theta (which has no keyboard shortcut) and · (Alt-Shift-9) with ×.
 
-Jollity replaces all occurrences of the old character by the new character,
+Jollity replaces all occurrences of the old character with the new character,
 so make sure you don't use the old character for other purposes.
 In the rare occasions I do need the dot product sign, I write it
 in LaTeX: `$\cdot$`.
@@ -301,10 +398,10 @@ With this function you can, among other things:
 - Make invisible line breaks (two or more spaces at the end of a line)
   visible (with a backslash).
 
-If you don't know how to write
-[regular expressions](https://docs.python.org/3/library/re.html) in Python,
-you should learn to: they are very powerful.
 You can see examples of the above in file `generate_doc.py`.
+If you don't know how to write
+[regular expressions](https://docs.python.org/3/howto/regex.html) in Python,
+you should learn to: they are very powerful and useful.
 
 Jollity defines a regular expression `COMMENTS` for HTML comments. The call
 ```py
@@ -324,28 +421,6 @@ Next line of text.
 ```
 because only the second comment begins after 0–3 spaces at the start of a line.
 
-## (Un)Lock cells
-Jupyter notebook cells can be locked against accidental deletion or change.
-If users want to edit or delete a locked cell, they have to unlock it first.
-A compliant Jupyter notebook interface won't allow users to delete cells
-that can't be edited.
-
-Jollity can lock or unlock cells of certain types for editing and/or deletion.
-```py
-set_cells(nb, types:str, edit:bool, delete:bool)
-```
-This function sets all cells of the given types to be editable and/or deletable.
-If you omit the argument, the cell's status isn't changed.
-This is useful if you for example only want some text cells do be editable.
-
-Argument `types` is a string with one or more of `markdown`, `code` and `raw`.
-If all cells should be set, use the string `'all'`.
-
-For example, `set_cells(nb, 'all', delete=False)` prevents all cells from being
-deleted but leaves their editable status unchanged. The call
-`set_cells(nb, 'code raw', edit=True, delete=False)` makes all
-code and raw cells editable but not deletable.
-The status of Markdown cells is not modified.
 
 ## Extract code
 The Jupyter interface allows us to save a notebook as a code file, but it will
@@ -363,6 +438,7 @@ comment lines start with `#`.
 These functions cleanup the notebook.
 The `replace_re` function can also be used for that purpose, e.g. to
 remove blank lines.
+
 ```py
 remove_cells(nb, kinds:str, text:str)
 ```
@@ -370,13 +446,28 @@ This function removes all cells of the given kinds that include text matching
 the regular expression `text`. Examples:
 
 - `remove_cells(nb, 'md:fence', '')` removes all fenced blocks, because any text includes the empty string
-- `remove_cells(nb, 'all', r'^$)` removes all empty cells.
+- `remove_cells(nb, 'all', r'^$')` removes all empty cells.
+
+```py
+set_cells(nb, kinds:str, edit:bool, delete:bool)
+```
+This function sets all cells of the given kinds to be editable and/or deletable.
+Jupyter interfaces usually don't allow users to delete cells
+that can't be edited. Users can still unlock cells for editing and deletion,
+but they can't do it accidentally.
+
+If you omit the argument, the cell's status isn't changed:
+
+- `set_cells(nb, 'all', delete=False)` prevents all cells from deletion
+  but leaves their editable status unchanged
+- `set_cells(nb, 'code raw', edit=True, delete=False)` makes all code and raw
+  cells editable but not deletable. The status of Markdown cells isn't modified.
 
 ```py
 remove_metadata(nb, kinds:str)
 ```
 This function removes all Jollity metadata from the cells of the given kinds.
 This loses information about the different kinds of Markdown cells.
-For example, after calling this function with `kinds='md:head'`,
-any other function called with the same `kinds` won't do anything because 
-Jollity won't distinguish heading cells from other Markdown cells anymore.
+For example, after calling this function with `kinds='md:head'`
+Jollity won't be able to distinguish heading cells and process them separately.
+This function is usually called last.

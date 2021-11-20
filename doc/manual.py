@@ -1,6 +1,11 @@
-# Jollity User Manual
 
-## Logging
+# Jollity Manual
+
+## Example
+
+## Using Jollity
+
+### Logging
 
 # CELL 1
 
@@ -14,7 +19,9 @@ logging.basicConfig(filename='log.txt', filemode='w')
 
 ## Markdown
 
-## Split Markdown
+### Cell kinds
+
+## Setup
 
 ## Header / Footer
 
@@ -31,8 +38,6 @@ logging.basicConfig(filename='log.txt', filemode='w')
 ### Replace strings
 
 ### Replace regular expressions
-
-## (Un)Lock cells
 
 ## Extract code
 
