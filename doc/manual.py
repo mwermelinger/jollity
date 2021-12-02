@@ -25,11 +25,11 @@ logging.basicConfig(filename='log.txt', filemode='w')
 
 ## Header / Footer
 
+## Expand URLs
+
 ## Check notebook
 
 #### Test checks
-
-## Expand URLs
 
 ## Replace text
 

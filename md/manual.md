@@ -77,7 +77,7 @@ Stage 3 uses Jollity to:
 - Replace one or more spaces between certain words and digits with a single
   non-breaking space, e.g. `step 1.2 takes 45 µs` becomes `step&nbsp;1.2 takes 45&nbsp;µs`.
 - Expand abbreviated URLs and check all URLs lead to existing pages.
-- Comment out all timing lines in code cells, if in draft mode.
+- Comment out all timing commands in code cells, if in draft mode.
 - Report code lines longer than 69 characters: they wrap around in the PDF.
 - Report invisible line breaks in Markdown.
 - Report when a heading level is skipped.
@@ -93,7 +93,7 @@ Stage 6 (after execution and conversion to PDF and HTML) uses Jollity to:
   the Jupyter interface can't render Markdown within HTML.
 - Insert the boilerplate text in the empty `ANSWER` cells.
 - If a notebook has code, extract it to a separate file, with a copyright
-  notice before the code. Comment out all IPython commands with `%`.
+  notice before the code. Comment out all IPython commands starting with `%`.
 
 File `m269.py` has the code that calls Jollity to do all the above.
 The Jollity functions are explained below.
@@ -276,6 +276,27 @@ append(nb, text:str, kind:str='')
 This function works like `prepend` but inserts the text at the end of
 the last cell or creates a new last cell with the text.
 
+## Expand URLs
+If you use some URLs repeatedly or URLs that change every year,
+like a link to the course webpage, Jollity allows you to define
+a dictionary of labels to URLs and use the labels in Markdown links.
+Having all URLs in one place makes it easier to update them.
+```py
+expand_urls(nb, kinds:str, url:dict)
+```
+This function goes through the cells of the given kinds and,
+for each link `...](label)` where `label` doesn't start with 'http',
+replaces `label` with `URL` if `label:URL` occurs in the `url` dictionary.
+For example, `expand_urls(nb, {'ou':'https://www.open.ac.uk'})` replaces
+`[Øpen University](ou)` with `[Øpen University](https://www.open.ac.uk)`.
+
+<!-- ```
+WARNING:Unknown link label:...
+```
+This message indicates that `...` occurs in a link but not in the dictionary.
+The paragraph above generates two messages because neither `ou` nor `label`
+are in the dictionary created by `generate_doc.py`. -->
+
 ## Check notebook
 The following functions don't modify a notebook: they only log potential issues.
 Most functions take as argument the kinds of cells to be analysed.
@@ -299,34 +320,19 @@ other kinds of cells simply wrap around at the window edge.
 ```py
 check_urls(nb, kinds:str)
 ```
-This reports any links of the form `](http...)` that can't be opened,
-e.g. because they raise a 404 error.
+This reports the errors that occur when following links of the form
+`](http...)`, e.g. a 404 error (web page not found).
+This isn't a robust way of detecting whether
+the URL is misspelled or the page no longer exists because
+some sites return a help page instead of an error when the URL is invalid
+and other sites return a 403 error (forbidden access) for valid pages.
+
+This function should be called after `expand_urls`.
 
 #### Test checks
 <!-- Must keep 3 spaces at end of next line! -->
 This heading (level 4) comes after a level 2 heading, and this sentence   
 has an invisible line break, so the log has two messages.
-
-## Expand URLs
-If you use some URLs repeatedly or URLs that change every year,
-like a link to the course webpage, Jollity allows you to define
-a dictionary of labels to URLs and use the labels in Markdown links.
-Having all URLs in one place makes it easier to update them.
-```py
-expand_urls(nb, kinds:str, url:dict)
-```
-This function goes through the cells of the given kinds and,
-for each link `...](label)` where `label` doesn't start with 'http',
-replaces `label` with `URL` if `label:URL` occurs in the `url` dictionary.
-For example, `expand_urls(nb, {'ou':'https://www.open.ac.uk'})` replaces
-`[Øpen University](ou)` with `[Øpen University](https://www.open.ac.uk)`.
-
-<!-- ```
-WARNING:Unknown link label:...
-```
-This message indicates that `...` occurs in a link but not in the dictionary.
-The paragraph above generates two messages because neither `ou` nor `label`
-are in the dictionary created by `generate_doc.py`. -->
 
 ## Replace text
 Jollity provides three functions to replace text.
@@ -424,7 +430,7 @@ because only the second comment begins after 0–3 spaces at the start of a line
 
 ## Extract code
 The Jupyter interface allows us to save a notebook as a code file, but it will
-also include all the text, as comments.
+also include all the text, as comments. Jollity extracts the code only.
 ```py
 extract_code(nb, headings:bool=True) -> str
 ```
@@ -467,7 +473,9 @@ If you omit the argument, the cell's status isn't changed:
 remove_metadata(nb, kinds:str)
 ```
 This function removes all Jollity metadata from the cells of the given kinds.
-This loses information about the different kinds of Markdown cells.
+If kinds is `'all'`, then any notebook-wide Jollity metadata is deleted too.
+
+Removing metadata loses information about the different kinds of Markdown cells.
 For example, after calling this function with `kinds='md:head'`
 Jollity won't be able to distinguish heading cells and process them separately.
 This function is usually called last.

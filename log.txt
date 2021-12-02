@@ -2,8 +2,8 @@ WARNING Long line:   non-breaking space, e.g. `step 1.2 takes 45 µs` becomes `s
 WARNING Long line: - `remove_cells(nb, 'md:fence', '')` removes all fenced blocks, because any text includes the empty string
 WARNING Invisible line break: can be run in a 'draft' mode that comments out the `%timeit` commands  
 WARNING Invisible line break: This heading (level 4) comes after a level 2 heading, and this sentence   
-ERROR Can't open URL: http://....
-ERROR Can't open URL: http...
+ERROR Opening http://.... raises encoding with 'idna' codec failed (UnicodeError: label empty or too long)
+ERROR Opening http... raises unknown url type: 'http...'
 WARNING Skipped heading level: #### Test checks
 WARNING Long line: The best-case complexity is ø(1) and the worst-case complexity is ø(2^n).
 WARNING Long line:     notebook = nbformat.read(file, 4)   # 4 is the notebook format version

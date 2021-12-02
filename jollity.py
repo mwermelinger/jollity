@@ -269,8 +269,8 @@ def check_urls(nb, kinds:str):
                 checked.add(match)
                 try:
                     urllib.request.urlopen(match)
-                except:
-                    error(f"Can't open URL: {match}")
+                except BaseException as e:
+                    error(f'Opening {match} raises {e}')
 
 # Extract code
 # ------------
@@ -325,5 +325,7 @@ def remove_cells(nb, kinds:str, text:str):
 
 def remove_metadata(nb, kinds:str):
     """Remove Jollity's metadata from the cells of the given kinds."""
+    if kinds == 'all':
+        nb.metadata.pop('jollity', '')
     for cell in _cells(nb, kinds):
         cell.metadata.pop('jollity', '')

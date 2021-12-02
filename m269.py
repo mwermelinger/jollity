@@ -31,17 +31,15 @@ logging.basicConfig(
 
 def for_execution(nb, notime:bool, filename:str):
     """Process notebook nb before it's executed."""
-    # separate special comments and headings into their own Markdown cells
-    jollity.split_md(nb, ['answer'], ['info', 'note', 'edit'])
-
     # if it's the first notebook of a chapter, add a reminder at the end
+    # do this before splitting cells into different kinds
     if 'introduction' in filename:
         jollity.append(nb, """\n
 Before starting to work on this chapter, check the
 [M269 website](m269) for relevant news and errata.""")
 
-    # strip space from start/end of a cell
-    jollity.replace_re(nb, 'all', [ (r'^\s+', ''), (r'\s+$', '') ])
+    # separate special comments and headings into their own Markdown cells
+    jollity.split_md(nb, ['answer'], ['info', 'note', 'edit'])
 
     # replace ^0, ..., ^9, ^n, ^i with corresponding Unicode superscripts
     jollity.replace_str(nb, 'all', jollity.POWERS)
@@ -49,36 +47,7 @@ Before starting to work on this chapter, check the
     jollity.replace_char(nb, 'all', ('«»“”øØ·',
                                      '││⌊⌋Θ𝛰×'))
 
-    # the following don't apply to code cells, to Markdown headings and
-    # to fenced blocks
-
-    # replace em-dash with minus (Unicode U+2212, HTML &minus;)
-    jollity.replace_char(nb, 'md:text md:note md:info md:edit', ('—', '−'))
-
-    jollity.replace_re(nb, 'md:text md:info md:note md:edit', [
-        # avoid a Jupyter bug that doesn't render some italics text
-        # replace _text_ with *text* inside [] or || or :] (slice)
-        (r'([\[│:])_([A-Za-z0-9 ]+)_([\]│])', r'\1*\2*\3'),
-        # replace _text_ with *text* before exponents
-        (r'_([A-Za-z0-9 ]+)_([⁰¹²³⁴⁵⁶⁷⁸⁹ⁿⁱ])', r'*\1*\2'),
-
-        # replace one or more spaces with one non-breaking space
-        (fr'(?i)({BEFORE}) +(\d)', r'\1&nbsp;\2'),  # ?i: ignore case
-        (fr'(\d) +({AFTER})', r'\1&nbsp;\2'),
-    ])
-
-    # expand abbreviated URLs, then check all
-    # skip headings because they don't have links in the M269 book
-    jollity.expand_urls(nb, 'md:text md:note md:info md:edit', URLs)
-    jollity.check_urls(nb, 'md:text md:note md:info md:edit')
-
-    # report invisible line breaks
-    jollity.check_breaks(nb, 'md:text md:note md:info md:edit')
-
-    # the following only apply to specific Markdown cells
-
-    # report missing heading levels
-    jollity.check_levels(nb)
+# ----- process Markdown -----
 
     # put NOTE and INFO text within alert boxes
     jollity.replace_re(nb, 'md:note', [
@@ -90,19 +59,56 @@ Before starting to work on this chapter, check the
         (r'(.)$', r'\1\n</div>')
     ])
 
-    # the following only applies to code
+    # expand abbreviated URLs
+    jollity.expand_urls(nb, 'md:text md:note md:info md:edit', URLs)
+
+    jollity.replace_re(nb, 'markdown', [
+        # avoid a Jupyter bug that doesn't render some italics text
+        # replace _text_ with *text* inside [] or || or :] (slice)
+        (r'([\[│:])_([A-Za-z0-9 ]+)_([\]│])', r'\1*\2*\3'),
+        # replace _text_ with *text* before exponents
+        (r'_([A-Za-z0-9 ]+)_([⁰¹²³⁴⁵⁶⁷⁸⁹ⁿⁱ])', r'*\1*\2'),
+
+        # remove editor's comments, which are at the end of a line
+        (r'(?m)<!--.*-->$', ''),
+    ])
+
+    # replace em-dash with minus (Unicode U+2212, HTML &minus;)
+    jollity.replace_char(nb, 'md:text md:note md:info md:edit', ('—', '−'))
+
+    jollity.replace_re(nb, 'md:text md:note md:info md:edit', [
+        # replace one or more spaces with one non-breaking space
+        # do this after expanding links as they may have spaces
+        (fr'(?i)({BEFORE}) +(\d)', r'\1&nbsp;\2'),  # ?i: ignore case
+        (fr'(\d) +({AFTER})', r'\1&nbsp;\2'),
+    ])
+
+    # make checks after all the text replacements
+    # report invisible line breaks
+    jollity.check_breaks(nb, 'md:text md:note md:info md:edit')
+    # check links (they aren't used in headings)
+    jollity.check_urls(nb, 'md:text md:note md:info md:edit')
+    # report missing heading levels
+    jollity.check_levels(nb)
+
+    # ---- process code
+
+    # remove code marked as to be skipped
+    # ?s allows . to match newlines
+    # *? is non-greedy match to stop at first /skip
+    jollity.replace_re(nb, 'code', (r'(?ms)^\s*# skip.*?# /skip\n?', ''))
 
     if notime:      # comment out the IPython timing commands
         # ?m is multiline mode to match at start of each line
         jollity.replace_re(nb, 'code', (r'(?m)^( *)(%time)', r'\1# \2'))
 
-    # remove code marked as to be skipped
-    # ?s allows . to match newlines
-    # *? is non-greedy match to stop at first /skip
-    jollity.replace_re(nb, 'code', (r'(?ms)^\s*# skip.*?# /skip\n', ''))
-
     # report long lines
     jollity.check_lengths(nb, 'code', MAXL)
+
+    # ---- clean up
+
+    # strip space from start/end of a cell
+    jollity.replace_re(nb, 'all', [ (r'^\s+', ''), (r'\s+$', '') ])
 
 def for_distribution(nb_file, py_file):
     """Process notebook before it's put on the website."""
@@ -138,7 +144,7 @@ def for_distribution(nb_file, py_file):
     # remove cells that are empty or have only space (there should be none)
     jollity.remove_cells(nb, 'all', r'^\s*$')
     # remove metadata: don't leave traces of Jollity
-    jollity.remove_metadata(nb, 'all')  #
+    jollity.remove_metadata(nb, 'all')
 
     with open(nb_file, 'w') as file:
         nbformat.write(nb, file)
